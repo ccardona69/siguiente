@@ -2,173 +2,227 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#ffffff">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#17150F">
   <title>Siguiente</title>
   <style>
     :root {
-      --bg: #ffffff;
-      --fg: #141414;
-      --muted: #616161;
-      --line: #dcdcdc;
-      --field: #f3f3f3;
-      --accent: #141414;
-      --accent-fg: #ffffff;
-      --notice-bg: #f0f0f0;
-      --radius: 12px;
-      --maxw: 32rem;
+      color-scheme: dark;
+      --bg: #17150F;
+      --surface: #211E16;
+      --surface-2: #2B271D;
+      --text: #EDE6D6;
+      --text-dim: #A69E8B;
+      --text-faint: #726B5A;
+      --line: #332F24;
+      --accent: #F0B429;
+      --accent-ink: #1A1710;
+      --done: #8FB48A;
+      --progress: #E0A458;
+      --stuck: #B99A8C;
+      --radius: 10px;
+      --radius-lg: 14px;
+      --maxw: 30rem;
+      --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
       background: var(--bg);
-      color: var(--fg);
-      font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      color: var(--text);
+      font: 400 16px/1.5 var(--font);
+      -webkit-font-smoothing: antialiased;
       -webkit-text-size-adjust: 100%;
     }
-    #app { max-width: var(--maxw); margin: 0 auto; padding: 16px 16px 40px; }
+    #app {
+      max-width: var(--maxw);
+      margin: 0 auto;
+      padding: 20px 20px calc(96px + env(safe-area-inset-bottom));
+    }
+    ::selection { background: rgba(240, 180, 41, .22); }
 
-    /* cabecera: captura y navegación */
-    header.top { margin-bottom: 20px; }
-    #capture {
-      width: 100%;
-      padding: 14px 16px;
-      font: inherit;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--field);
-      color: var(--fg);
+    /* barra superior: título de la vista, estado de guardado y menú */
+    .appbar { display: flex; align-items: center; gap: 10px; margin-bottom: 22px; }
+    .appbar h1 { margin: 0 auto 0 0; font-size: 22px; font-weight: 600; letter-spacing: -.01em; }
+    .saveind { color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+    .iconbtn {
+      flex: none; display: grid; place-items: center;
+      width: 36px; height: 36px; margin-right: -8px;
+      border: 0; border-radius: var(--radius); background: transparent;
+      color: var(--text-dim); cursor: pointer;
     }
-    #capture:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
-    .toprow { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
-    .nav { display: flex; gap: 6px; }
-    .navbtn {
-      border: 1px solid var(--line);
-      background: transparent;
-      color: var(--fg);
-      padding: 7px 12px;
-      border-radius: 999px;
-      font: inherit;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
-    .navbtn.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
-    .saveind { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
-    .link {
-      border: 0;
-      background: transparent;
-      color: var(--fg);
-      text-decoration: underline;
-      padding: 6px 4px;
-      font: inherit;
-      font-size: 0.9rem;
-      cursor: pointer;
-    }
+    .iconbtn:hover { color: var(--text); }
+    .iconbtn svg { width: 20px; height: 20px; }
 
-    /* botones grandes */
+    /* captura: solo el título es obligatorio, nada bloquea */
+    .capture {
+      width: 100%; padding: 13px 14px; margin-bottom: 24px;
+      font: inherit; color: var(--text);
+      background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+    }
+    .capture::placeholder { color: var(--text-faint); }
+
+    /* botones */
     .btn {
-      display: inline-block;
-      width: 100%;
-      padding: 15px 18px;
-      border: 1px solid var(--accent);
-      border-radius: var(--radius);
-      background: var(--accent);
-      color: var(--accent-fg);
-      font: inherit;
-      font-weight: 600;
-      text-align: center;
-      cursor: pointer;
+      display: block; width: 100%; min-height: 44px; padding: 12px 18px;
+      font: 500 16px/1.2 var(--font); text-align: center;
+      border: 1px solid transparent; border-radius: var(--radius); cursor: pointer;
     }
-    .btn.big { padding: 18px; font-size: 1.05rem; }
-    .btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); }
-    .btn.small { width: auto; padding: 10px 14px; font-size: 0.9rem; }
-    .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+    .btn--primary { background: var(--accent); color: var(--accent-ink); }
+    .btn--quiet { background: transparent; color: var(--text); border-color: var(--line); }
+    .btn--small { width: auto; min-height: 0; padding: 9px 14px; font-size: 14px; }
+    .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 20px; }
 
-    /* vista Hoy / Sesión */
-    .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); margin: 0 0 6px; }
-    .action-big { font-size: 1.6rem; line-height: 1.25; font-weight: 700; margin: 0 0 8px; }
-    .for-outcome { color: var(--muted); margin: 0 0 4px; }
-    .view-title, .later-title { font-size: 1rem; margin: 28px 0 8px; }
-    .later { list-style: none; padding: 0; margin: 0; }
-    .later li {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 12px;
-      padding: 12px 0;
-      border-top: 1px solid var(--line);
+    .link {
+      border: 0; background: transparent; color: var(--text-dim);
+      font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px;
+      padding: 6px 0; cursor: pointer;
     }
-    .later-text { flex: 1; }
+    .link:hover { color: var(--text); }
+
+    /* Hoy: la acción actual es el elemento principal de toda la app */
+    .kicker { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--text-faint); }
+    .hero { margin: 0; font-size: 30px; font-weight: 600; line-height: 1.15; letter-spacing: -.02em; }
+    .for-outcome { margin: 10px 0 0; color: var(--text-dim); font-size: 15px; }
+
+    /* listas planas, separadas por filete (después, bandeja, registro) */
+    .rows { list-style: none; margin: 26px 0 0; padding: 0; }
+    .rows.tight { margin-top: 6px; }
+    .rows > li { padding: 14px 0; border-top: 1px solid var(--line); }
+    .rows > li:first-child { border-top: 0; }
+    .section-label { margin: 30px 0 0; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+
+    .later { display: flex; gap: 14px; align-items: baseline; justify-content: space-between; }
+    .later .txt { flex: 1; }
+    .later .sub { display: block; margin-top: 2px; color: var(--text-faint); font-size: 13px; }
 
     /* bandeja */
-    .tasks { list-style: none; padding: 0; margin: 0; }
-    .task { padding: 14px 0; border-top: 1px solid var(--line); }
-    .task:first-child { border-top: 0; }
-    .task-title { font-weight: 600; }
-    .task-next { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
-    .task-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
-    .badge {
-      border: 1px solid var(--accent);
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 0.85rem;
-      font-weight: 600;
-    }
+    .task .t-title { font-weight: 500; }
+    .task .t-next { margin-top: 3px; color: var(--text-dim); font-size: 14px; }
+    .task .t-next.none { color: var(--text-faint); }
+    .task .t-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 12px; }
+    .badge { padding: 7px 12px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; color: var(--text-dim); }
 
     /* formularios */
-    .field { display: block; margin-top: 14px; }
-    .field span { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 6px; }
+    .field { display: block; margin-top: 16px; }
+    .field span { display: block; margin-bottom: 6px; font-size: 14px; color: var(--text-dim); }
     .field input {
-      width: 100%;
-      padding: 13px 14px;
-      font: inherit;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: var(--field);
-      color: var(--fg);
+      width: 100%; padding: 12px 14px; font: inherit; color: var(--text);
+      background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
     }
-    .field input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
-    .q { font-size: 1.15rem; font-weight: 600; margin: 10px 0 0; }
-    .define-for { color: var(--muted); margin: 4px 0 0; }
+    .define-for { margin: 0; color: var(--text-dim); }
+    .q { margin: 0 0 4px; font-size: 19px; font-weight: 600; }
 
-    /* avisos neutros (sin color de alerta en esta fase) */
+    /* aviso neutro: sin color de alerta, nunca culpa */
     .notice {
-      background: var(--notice-bg);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      margin: 12px 0;
+      margin: 0 0 18px; padding: 12px 14px;
+      background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+      color: var(--text-dim); font-size: 14px; line-height: 1.45;
     }
-    .session-banner {
-      display: block;
-      width: 100%;
-      text-align: left;
-      background: var(--notice-bg);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 12px 14px;
-      margin-bottom: 16px;
-      font: inherit;
-      cursor: pointer;
+    .notice.as-button { width: 100%; text-align: left; color: var(--text); cursor: pointer; font-family: inherit; }
+
+    /* panel elevado: se usa poco, solo en Progreso */
+    .panel {
+      margin-top: 4px; padding: 16px 18px;
+      background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
     }
-    .muted { color: var(--muted); }
+    .figures { display: flex; }
+    .figure { flex: 1; padding: 2px 14px; }
+    .figure:first-child { padding-left: 0; }
+    .figure + .figure { border-left: 1px solid var(--line); }
+    .figure strong { display: block; font-size: 23px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+    .figure span { display: block; margin-top: 4px; color: var(--text-dim); font-size: 12px; }
 
-    /* meta de sesión */
-    dl.meta { margin: 18px 0 0; }
-    dl.meta > div { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
-    dl.meta dt { color: var(--muted); }
-    dl.meta dd { margin: 0; font-weight: 600; }
+    /* sesión: pantalla enfocada, el tiempo cuenta hacia arriba desde la marca de inicio */
+    .view--full { padding-top: 6px; }
+    .session .hero { font-size: 26px; }
+    .ring-stage { display: grid; place-items: center; padding: 34px 0 28px; }
+    .ring-wrap { position: relative; width: 208px; height: 208px; }
+    .ring { width: 100%; height: 100%; transform: rotate(-90deg); }
+    .ring-track { fill: none; stroke: var(--line); stroke-width: 2.5; }
+    .ring-sweep {
+      fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linecap: round;
+      stroke-dasharray: 289.03; stroke-dashoffset: 289.03;
+    }
+    .ring-label { position: absolute; inset: 0; display: grid; place-content: center; text-align: center; }
+    .ring-label strong { font-size: 42px; font-weight: 500; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+    .ring-label span { display: block; margin-top: 6px; color: var(--text-dim); font-size: 13px; }
 
-    /* estado vacío */
-    .empty { text-align: center; padding: 32px 0; }
-    .empty-msg { font-size: 1.15rem; margin-bottom: 18px; }
+    /* resultado de la sesión */
+    .results { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; }
+    .result {
+      display: block; width: 100%; min-height: 48px; padding: 13px 15px;
+      background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--radius);
+      font: 500 15px/1.2 var(--font); color: var(--text); text-align: left; cursor: pointer;
+    }
 
-    /* menú: importar */
+    /* semana: registro retrospectivo, un día sin sesiones no es un incumplimiento */
+    .day { padding: 16px 0; border-top: 1px solid var(--line); }
+    .day:first-child { border-top: 0; }
+    .day-head { display: flex; align-items: baseline; gap: 8px; }
+    .day-head .d-name { font-weight: 600; font-size: 14px; text-transform: capitalize; }
+    .day-head .d-date { color: var(--text-faint); font-size: 12px; }
+    .day.today .d-name { color: var(--accent); }
+    .day-items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+    .day-empty { margin: 8px 0 0; color: var(--text-faint); font-size: 13px; }
+    .d-item { display: flex; gap: 10px; align-items: baseline; font-size: 14px; }
+    .d-item .d-dur { margin-left: auto; color: var(--text-faint); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+    .d-item.planned { color: var(--text-dim); }
+    .d-item.planned .tag { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; }
+
+    /* registro completo: se conserva siempre */
+    .log { list-style: none; margin: 6px 0 0; padding: 0; }
+    .log > li { padding: 13px 0; border-top: 1px solid var(--line); }
+    .log > li:first-child { border-top: 0; }
+    .log-head { display: flex; flex-wrap: wrap; gap: 4px 8px; align-items: baseline; font-size: 13px; color: var(--text-faint); }
+    .log-head .l-task { color: var(--text); font-weight: 500; }
+    .log-head .l-dur { margin-left: auto; font-variant-numeric: tabular-nums; }
+    .log-outcome { display: flex; gap: 8px; align-items: baseline; margin: 7px 0 0; font-size: 13px; color: var(--text-dim); }
+    .log-step { display: block; margin: 3px 0 0 15px; color: var(--text-faint); font-size: 13px; }
+    .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; transform: translateY(-1px); }
+    .dot--done { background: var(--done); }
+    .dot--progress { background: var(--progress); }
+    .dot--stuck { background: var(--stuck); }
+
+    /* estado vacío: una invitación a actuar, sin presión */
+    .empty { padding: 40px 0 24px; text-align: center; color: var(--text-dim); }
+    .empty p { margin: 0 0 18px; }
+
+    /* menú */
     .filelabel { position: relative; overflow: hidden; }
-    .filelabel input[type=file] { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0; cursor: pointer; }
+    .filelabel input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
 
-    @media (min-width: 30rem) {
-      .btn.big { font-size: 1.1rem; }
+    /* navegación inferior */
+    .tabbar {
+      position: fixed; bottom: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: var(--maxw);
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      background: var(--bg); border-top: 1px solid var(--line);
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    .tab {
+      position: relative; display: grid; place-items: center; gap: 3px;
+      min-height: 58px; padding: 8px 4px;
+      border: 0; background: transparent; color: var(--text-faint);
+      font: 500 11px/1 var(--font); cursor: pointer;
+    }
+    .tab svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+    .tab[aria-current="page"] { color: var(--accent); }
+    .tab[aria-current="page"]::before {
+      content: ""; position: absolute; top: 0; left: 24%; right: 24%; height: 2px;
+      background: var(--accent); border-radius: 0 0 2px 2px;
+    }
+
+    :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .capture:focus-visible, .field input:focus-visible { outline-offset: 1px; }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .btn:active, .result:active { transform: translateY(1px); }
+      .tab { transition: color .12s ease; }
+    }
+    @media (min-width: 32rem) {
+      #app { padding-top: 28px; }
     }
   </style>
 </head>
@@ -182,8 +236,7 @@
 
     var Core = globalThis.SiguienteCore;
 
-    // ---------- adaptador de almacenamiento ----------
-    // única puerta a la persistencia; en la Fase 1.5 se añadirá uno remoto sin tocar el resto
+    // ---------- adaptador local: única puerta a la persistencia del navegador ----------
     var LocalStorageAdapter = {
       key: 'siguiente.v1',
       load: function () {
@@ -209,23 +262,153 @@
         });
       }
     };
-    var adapter = LocalStorageAdapter;
 
-    // ---------- reloj y fecha, que la interfaz inyecta al núcleo ----------
+    // ---------- adaptador remoto: guarda y devuelve el estado completo contra el Worker ----------
+    // la ruta es relativa; solo funciona cuando la app se sirve desde su propio origen
+    var SYNC_PATH = '/api/state';
+
+    // lee un token de sincronización de la URL (?t=...) una vez y lo recuerda
+    function syncToken() {
+      try {
+        var fromUrl = new URLSearchParams(location.search).get('t');
+        if (fromUrl) { localStorage.setItem('siguiente.token', fromUrl); return fromUrl; }
+        return localStorage.getItem('siguiente.token') || '';
+      } catch (e) {
+        return '';
+      }
+    }
+
+    // cabeceras de autorización solo si hay token configurado
+    function authHeaders() {
+      var t = syncToken();
+      return t ? { 'Authorization': 'Bearer ' + t } : {};
+    }
+
+    var RemoteAdapter = {
+      load: function () {
+        return fetch(SYNC_PATH, { headers: authHeaders(), cache: 'no-store' }).then(function (res) {
+          if (!res.ok) throw new Error('estado remoto no disponible');
+          return res.json();
+        }).then(function (body) {
+          return body && body.state ? body.state : null;
+        });
+      },
+      save: function (state) {
+        return fetch(SYNC_PATH, {
+          method: 'PUT',
+          headers: Object.assign({ 'Content-Type': 'application/json' }, authHeaders()),
+          body: JSON.stringify(state)
+        }).then(function (res) {
+          if (!res.ok) throw new Error('no se pudo guardar en el servidor');
+        });
+      }
+    };
+
+    function noop() {}
+    function revisionOf(s) { return (s && typeof s.revision === 'number') ? s.revision : -1; }
+
+    // ---------- adaptador compuesto: local nunca pierde datos, remoto sincroniza si puede ----------
+    // respeta el mismo contrato load()/save(state); ni el núcleo ni las vistas lo notan
+    function makeCompositeAdapter(local, remote) {
+      return {
+        load: function () {
+          return Promise.all([
+            local.load(),
+            remote.load().then(function (v) { return { ok: true, value: v }; }, function () { return { ok: false }; })
+          ]).then(function (pair) {
+            var localState = pair[0];
+            var r = pair[1];
+            if (!r.ok) { SYNC = 'localonly'; return localState; }
+            SYNC = 'ok';
+            var remoteState = r.value;
+            // remoto vacío: se sube lo local como punto de partida
+            if (!remoteState) {
+              if (localState) remote.save(localState).then(noop, function () { SYNC = 'localonly'; });
+              return localState;
+            }
+            // lo local va por delante (cambios sin sincronizar): se sube y se conserva
+            if (localState && revisionOf(localState) > revisionOf(remoteState)) {
+              remote.save(localState).then(noop, function () { SYNC = 'localonly'; });
+              return localState;
+            }
+            // el remoto manda: se cachea en local
+            local.save(remoteState).then(noop, noop);
+            return remoteState;
+          });
+        },
+        save: function (state) {
+          return local.save(state).then(function () {
+            return remote.save(state).then(function () { SYNC = 'ok'; }, function () { SYNC = 'localonly'; });
+          });
+        }
+      };
+    }
+
+    // elige adaptador: doble clic (file://) trabaja solo en local; servido, sincroniza
+    function makeAdapter() {
+      if (location.protocol === 'file:' || !location.host) { SYNC = 'off'; return LocalStorageAdapter; }
+      SYNC = 'ok';
+      return makeCompositeAdapter(LocalStorageAdapter, RemoteAdapter);
+    }
+
+    // ---------- reloj y fecha que la interfaz inyecta al núcleo ----------
     // marca ISO 8601 UTC
     function now() { return new Date().toISOString(); }
-    // fecha local en formato YYYY-MM-DD
+    // fecha local YYYY-MM-DD
     function localDate() {
       var d = new Date();
-      var p = function (n) { return (n < 10 ? '0' : '') + n; };
-      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
+    function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+    var DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+    // 'YYYY-MM-DD' a Date local a medianoche
+    function parseLocalDate(s) {
+      var a = s.split('-');
+      return new Date(+a[0], +a[1] - 1, +a[2]);
+    }
+    // rango [inicio, fin) de un día local como marcas ISO UTC
+    function localDayRange(s) {
+      var start = parseLocalDate(s);
+      var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 1);
+      return { startIso: start.toISOString(), endIso: end.toISOString() };
+    }
+    // las fechas de la semana (lunes a hoy) que contiene s
+    function weekUpToToday(s) {
+      var d = parseLocalDate(s);
+      var offset = (d.getDay() + 6) % 7;
+      var out = [];
+      for (var i = offset; i >= 0; i--) {
+        var x = new Date(d.getFullYear(), d.getMonth(), d.getDate() - i);
+        out.push(x.getFullYear() + '-' + pad(x.getMonth() + 1) + '-' + pad(x.getDate()));
+      }
+      return out;
+    }
+    function fmtDayName(s) { return DIAS[parseLocalDate(s).getDay()]; }
+    function fmtDayDate(s) { var d = parseLocalDate(s); return d.getDate() + ' ' + MESES[d.getMonth()]; }
+    // marca ISO a '9 abr, 14:03'
+    function fmtStamp(iso) {
+      var d = new Date(iso);
+      return d.getDate() + ' ' + MESES[d.getMonth()] + ', ' + d.getHours() + ':' + pad(d.getMinutes());
+    }
+    // marca ISO a solo la hora '14:03'
+    function fmtClock(iso) {
+      var d = new Date(iso);
+      return d.getHours() + ':' + pad(d.getMinutes());
     }
 
     // ---------- estado de la aplicación ----------
-    var STATE = Core.emptyState();      // única fuente de verdad
-    var VIEW = { name: 'hoy' };          // vista actual y datos transitorios de interfaz
-    var SAVE = 'saved';                  // 'saved' | 'saving' | 'error'
-    var elapsedTimer = null;             // solo repinta el tiempo transcurrido
+    var STATE = Core.emptyState();       // única fuente de verdad
+    var VIEW = { name: 'hoy' };           // vista actual y datos transitorios de interfaz
+    var SAVE = 'saved';                   // 'saved' | 'saving' | 'error'
+    var SYNC = 'off';                     // 'off' | 'ok' | 'localonly'
+    var elapsedTimer = null;              // solo repinta el tiempo transcurrido
+    var REDUCE = false;
+    try { REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
+
+    var adapter = makeAdapter();
 
     // ---------- utilidades ----------
     // escapa el texto de la persona antes de insertarlo en HTML
@@ -235,39 +418,65 @@
       });
     }
 
-    // fecha y hora local legible
-    function fmtDateTime(iso) {
-      var d = new Date(iso);
-      return d.toLocaleDateString('es') + ' ' +
-        d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
-    }
-
-    // duración legible a partir de milisegundos
+    // duración legible larga a partir de milisegundos
     function fmtDur(ms) {
       var totalMin = Math.floor(ms / 60000);
       if (totalMin < 1) return 'menos de 1 min';
       var h = Math.floor(totalMin / 60);
       var m = totalMin % 60;
       if (h < 1) return m + ' min';
-      return h + ' h ' + (m < 10 ? '0' : '') + m + ' min';
+      return h + ' h ' + pad(m) + ' min';
+    }
+    // duración compacta para las cifras de Progreso
+    function fmtDurShort(ms) {
+      var m = Math.floor(ms / 60000);
+      if (m < 60) return m + ' min';
+      var h = Math.floor(m / 60);
+      var r = m % 60;
+      return r ? h + ' h ' + r : h + ' h';
     }
 
-    // texto del indicador de guardado
+    // texto del indicador de guardado, honesto sobre dónde quedaron los datos
     function saveText() {
-      return SAVE === 'saving' ? 'Guardando…' : SAVE === 'error' ? 'Error al guardar' : 'Guardado';
+      if (SYNC === 'off') {
+        return SAVE === 'saving' ? 'Guardando…' : SAVE === 'error' ? 'No se pudo guardar' : 'Guardado';
+      }
+      if (SAVE === 'saving') return 'Sincronizando…';
+      if (SAVE === 'error') return 'No se pudo guardar';
+      return SYNC === 'localonly' ? 'Guardado solo en este equipo' : 'Sincronizado';
     }
 
-    // busca una tarea por id
+    // busca una tarea por id para la interfaz
     function findTaskUi(id) {
-      var list = STATE.tasks.filter(function (t) { return t.id === id; });
-      return list.length ? list[0] : null;
+      return Core.taskById(STATE, id);
+    }
+
+    // clase y palabra del resultado de una sesión, derivadas de lo que se guardó
+    function outcomeKind(s) {
+      if (s.nextStep === null) return 'done';
+      if (s.progress === 'yes') return 'done';
+      if (s.progress === 'some') return 'progress';
+      return 'stuck';
+    }
+    function outcomeWord(s) {
+      if (s.nextStep === null) return 'Terminaste la tarea';
+      if (s.progress === 'yes') return 'Avanzaste bien';
+      if (s.progress === 'some') return 'Avanzaste algo';
+      return 'Te trabaste';
+    }
+
+    // desfase del trazo del anillo: una vuelta completa por hora, solo señal de que el tiempo corre
+    function ringOffset(ms) {
+      var circumference = 289.03;
+      var fraction = ((ms / 1000) % 3600) / 3600;
+      return (circumference * (1 - fraction)).toFixed(2);
     }
 
     // ---------- guardado ----------
     // adopta un estado nuevo, repinta y guarda solo si cambió
     function apply(next) {
       if (next === STATE) { render(); return; }
-      STATE = Core.stampSave(next, now());   // sube revisión y sella savedAt justo antes de save()
+      STATE = Core.stampSave(next, now());
       SAVE = 'saving';
       render();
       adapter.save(STATE).then(function () {
@@ -290,7 +499,6 @@
     function doCapture(title) {
       var r = Core.captureTask(STATE, { title: title }, now());
       if (r.ok) apply(r.state);
-      // título vacío: no se hace nada, la captura no puede completarse
     }
 
     // elegir para hoy; si falta la siguiente acción, se abre el formulario y se reintenta
@@ -382,46 +590,69 @@
       apply(Core.emptyState());
     }
 
+    // ---------- iconos: un único trazo consistente para toda la navegación ----------
+    function svgIcon(inner) {
+      return '<svg viewBox="0 0 20 20" aria-hidden="true">' + inner + '</svg>';
+    }
+    var ICON = {
+      hoy: svgIcon('<circle cx="10" cy="11" r="6"/><path d="M10 3v1.6"/>'),
+      bandeja: svgIcon('<path d="M3 12l2.2-6.6A1.5 1.5 0 016.6 4.4h6.8a1.5 1.5 0 011.4 1L17 12"/><path d="M3 12v3.6A1.4 1.4 0 004.4 17h11.2a1.4 1.4 0 001.4-1.4V12"/><path d="M3 12h3.6l1 2h4.8l1-2H17"/>'),
+      semana: svgIcon('<rect x="3" y="4.5" width="14" height="12.5" rx="1.6"/><path d="M3 8.5h14M7 3v3M13 3v3"/>'),
+      progreso: svgIcon('<path d="M4.5 16v-3.5M10 16V7M15.5 16v-6"/>'),
+      menu: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="currentColor" stroke="none"><circle cx="4.5" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="15.5" cy="10" r="1.4"/></svg>',
+      close: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg>'
+    };
+
     // ---------- render ----------
     function render() {
       var app = document.getElementById('app');
       var keepFocus = document.activeElement && document.activeElement.id === 'capture';
+      var full = (VIEW.name === 'sesion' || VIEW.name === 'cerrar') && !VIEW.menu;
 
       var body = VIEW.menu ? menuHtml() : viewHtml();
-      app.innerHTML = headerHtml() + '<section class="view">' + body + '</section>';
+      var chrome = full ? '' : (appbarHtml() + captureSlot());
+      app.innerHTML = chrome + '<div class="view' + (full ? ' view--full' : '') + '">' + body + '</div>' + tabbarHtml();
       wire();
 
       if (keepFocus) {
         var c = document.getElementById('capture');
         if (c) c.focus();
       }
-
-      // el tiempo transcurrido solo se anima en la vista Sesión
       if (VIEW.name === 'sesion' && !VIEW.menu) startElapsed(); else stopElapsed();
     }
 
-    // cabecera común
-    function headerHtml() {
-      return '' +
-        '<header class="top">' +
-          '<input id="capture" type="text" autocomplete="off" ' +
-            'placeholder="¿Qué quieres avanzar?" aria-label="¿Qué quieres avanzar?">' +
-          '<div class="toprow">' +
-            '<nav class="nav">' +
-              navBtn('hoy', 'Hoy') +
-              navBtn('bandeja', 'Bandeja') +
-            '</nav>' +
-            '<span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
-            '<button type="button" class="link" data-action="toggle-menu">Menú</button>' +
-          '</div>' +
-        '</header>';
+    // barra superior común
+    function appbarHtml() {
+      var titles = { hoy: 'Hoy', bandeja: 'Bandeja', definir: 'Definir', semana: 'Esta semana', progreso: 'Progreso' };
+      var title = VIEW.menu ? 'Menú' : (titles[VIEW.name] || 'Siguiente');
+      return '<div class="appbar">' +
+        '<h1>' + esc(title) + '</h1>' +
+        '<span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
+        '<button type="button" class="iconbtn" data-action="toggle-menu" aria-label="' +
+          (VIEW.menu ? 'Cerrar menú' : 'Menú') + '">' + (VIEW.menu ? ICON.close : ICON.menu) + '</button>' +
+      '</div>';
     }
 
-    // botón de navegación
-    function navBtn(name, label) {
-      var active = (!VIEW.menu && VIEW.name === name) ? ' active' : '';
-      return '<button type="button" class="navbtn' + active + '" data-action="go" data-view="' + name + '">' +
-        esc(label) + '</button>';
+    // campo de captura: presente en Hoy y en Bandeja
+    function captureSlot() {
+      if (VIEW.menu || (VIEW.name !== 'hoy' && VIEW.name !== 'bandeja')) return '';
+      return '<input id="capture" class="capture" type="text" autocomplete="off" ' +
+        'placeholder="¿Qué quieres avanzar?" aria-label="¿Qué quieres avanzar?">';
+    }
+
+    // navegación inferior de cuatro secciones
+    function tabbarHtml() {
+      var items = [
+        ['hoy', 'Hoy', ICON.hoy],
+        ['bandeja', 'Bandeja', ICON.bandeja],
+        ['semana', 'Semana', ICON.semana],
+        ['progreso', 'Progreso', ICON.progreso]
+      ];
+      return '<nav class="tabbar" aria-label="Secciones">' + items.map(function (it) {
+        var current = (!VIEW.menu && VIEW.name === it[0]) ? ' aria-current="page"' : '';
+        return '<button type="button" class="tab" data-action="go" data-view="' + it[0] + '"' + current + '>' +
+          it[2] + '<span>' + it[1] + '</span></button>';
+      }).join('') + '</nav>';
     }
 
     // enruta a la vista actual
@@ -429,8 +660,10 @@
       switch (VIEW.name) {
         case 'bandeja': return bandejaHtml();
         case 'definir': return definirHtml();
-        case 'sesion': return sesionHtml();
-        case 'cerrar': return cerrarHtml();
+        case 'sesion': return sessionScreen();
+        case 'cerrar': return sessionScreen();
+        case 'semana': return semanaHtml();
+        case 'progreso': return progresoHtml();
         default: return hoyHtml();
       }
     }
@@ -439,69 +672,67 @@
     function sessionBanner() {
       var s = Core.openSession(STATE);
       if (!s || VIEW.name === 'sesion' || VIEW.name === 'cerrar') return '';
-      return '<button type="button" class="session-banner" data-action="go" data-view="sesion">' +
-        'Tienes una sesión abierta · Volver a la sesión</button>';
+      return '<button type="button" class="notice as-button" data-action="go" data-view="sesion">' +
+        'Tienes una sesión abierta desde las ' + esc(fmtClock(s.startedAt)) + '. Volver a la sesión.</button>';
     }
 
-    // vista Hoy: la primera acción del plan, y debajo el resto
+    // Hoy: la primera acción del plan como elemento principal, y debajo el resto
     function hoyHtml() {
       var plan = Core.todayPlan(STATE, localDate()).filter(function (it) { return it.task; });
       if (plan.length === 0) {
-        return '' +
+        return sessionBanner() +
           '<div class="empty">' +
-            '<p class="empty-msg">Todavía no has elegido nada para hoy</p>' +
-            '<button type="button" class="btn" data-action="go" data-view="bandeja">Ir a la bandeja</button>' +
+            '<p>No has elegido nada para hoy.</p>' +
+            '<button type="button" class="btn btn--quiet" data-action="go" data-view="bandeja">Ver la bandeja</button>' +
           '</div>';
       }
       var first = plan[0];
       var rest = plan.slice(1);
       var html = sessionBanner();
-      html += '<p class="eyebrow">Ahora</p>';
-      html += '<p class="action-big">' + esc(first.task.nextAction) + '</p>';
+      html += '<p class="kicker">Ahora</p>';
+      html += '<p class="hero">' + esc(first.task.nextAction) + '</p>';
       if (first.task.outcome) {
         html += '<p class="for-outcome">Para: ' + esc(first.task.outcome) + '</p>';
       }
       html += '<div class="stack">' +
-        '<button type="button" class="btn big" data-action="start" data-id="' + esc(first.task.id) + '">Empezar</button>' +
-        '<button type="button" class="btn ghost" data-action="adjust" data-id="' + esc(first.task.id) + '">Ajustar</button>' +
+        '<button type="button" class="btn btn--primary" data-action="start" data-id="' + esc(first.task.id) + '">Empezar</button>' +
+        '<button type="button" class="btn btn--quiet" data-action="adjust" data-id="' + esc(first.task.id) + '">Ajustar</button>' +
       '</div>';
       if (rest.length) {
-        html += '<h2 class="later-title">Después</h2><ul class="later">';
+        html += '<p class="section-label">Después</p><ul class="rows tight">';
         rest.forEach(function (it) {
-          html += '<li>' +
-            '<span class="later-text">' + esc(it.task.nextAction) + '</span>' +
-            '<button type="button" class="link" data-action="tofirst" data-id="' + esc(it.task.id) + '">' +
-              'Subir al primer lugar</button>' +
-          '</li>';
+          html += '<li class="later"><span class="txt">' + esc(it.task.nextAction) +
+            (it.task.outcome ? '<span class="sub">Para: ' + esc(it.task.outcome) + '</span>' : '') +
+            '</span><button type="button" class="link" data-action="tofirst" data-id="' + esc(it.task.id) + '">Subir</button></li>';
         });
         html += '</ul>';
       }
       return html;
     }
 
-    // vista Bandeja: tareas en inbox o active, con dos acciones por tarea
+    // Bandeja: tareas en inbox o active, con dos acciones por tarea
     function bandejaHtml() {
       var tasks = Core.inbox(STATE);
       var today = Core.todayPlan(STATE, localDate());
       var inToday = {};
       today.forEach(function (it) { inToday[it.taskId] = true; });
 
-      var html = sessionBanner() + '<h2 class="view-title">Bandeja</h2>';
+      var html = sessionBanner();
       if (tasks.length === 0) {
-        return html + '<p class="muted">La bandeja está vacía. Escribe arriba para capturar algo.</p>';
+        return html + '<div class="empty"><p>La bandeja está vacía.<br>Escribe arriba para capturar algo.</p></div>';
       }
-      html += '<ul class="tasks">';
+      html += '<ul class="rows">';
       tasks.forEach(function (t) {
         html += '<li class="task">';
-        html += '<div class="task-title">' + esc(t.title) + '</div>';
+        html += '<div class="t-title">' + esc(t.title) + '</div>';
         html += t.nextAction
-          ? '<div class="task-next">Siguiente: ' + esc(t.nextAction) + '</div>'
-          : '<div class="task-next muted">Sin siguiente acción</div>';
-        html += '<div class="task-actions">';
-        html += '<button type="button" class="btn ghost small" data-action="define" data-id="' + esc(t.id) + '">Definir</button>';
+          ? '<div class="t-next">Siguiente: ' + esc(t.nextAction) + '</div>'
+          : '<div class="t-next none">Sin siguiente acción</div>';
+        html += '<div class="t-actions">';
+        html += '<button type="button" class="btn btn--quiet btn--small" data-action="define" data-id="' + esc(t.id) + '">Definir</button>';
         html += inToday[t.id]
-          ? '<span class="badge">Hoy</span>'
-          : '<button type="button" class="btn small" data-action="choose" data-id="' + esc(t.id) + '">Elegir para hoy</button>';
+          ? '<span class="badge">En el plan de hoy</span>'
+          : '<button type="button" class="btn btn--primary btn--small" data-action="choose" data-id="' + esc(t.id) + '">Elegir para hoy</button>';
         html += '</div></li>';
       });
       html += '</ul>';
@@ -511,98 +742,202 @@
     // formulario único de definición
     function definirHtml() {
       var task = findTaskUi(VIEW.taskId);
-      if (!task) return '<p class="muted">No se encontró la tarea.</p>';
+      if (!task) {
+        return '<div class="empty"><p>No se encontró la tarea.</p>' +
+          '<button type="button" class="btn btn--quiet" data-action="go" data-view="bandeja">Volver a la bandeja</button></div>';
+      }
       var outcomeVal = ('draftOutcome' in VIEW) ? VIEW.draftOutcome : (task.outcome || '');
       var nextVal = ('draftNext' in VIEW) ? VIEW.draftNext : (task.nextAction || '');
 
-      var html = '<h2 class="view-title">Definir</h2>';
-      html += '<p class="define-for">' + esc(task.title) + '</p>';
+      var html = '<p class="define-for">' + esc(task.title) + '</p>';
       if (VIEW.defineError) html += '<p class="notice">' + esc(VIEW.defineError) + '</p>';
       html += '<label class="field"><span>Resultado deseado (opcional)</span>' +
         '<input id="d-outcome" type="text" autocomplete="off" value="' + esc(outcomeVal) + '"></label>';
       html += '<label class="field"><span>Siguiente acción</span>' +
         '<input id="d-next" type="text" autocomplete="off" value="' + esc(nextVal) + '"></label>';
       html += '<div class="stack">' +
-        '<button type="button" class="btn big" data-action="save-define">Guardar</button>' +
-        '<button type="button" class="btn ghost" data-action="cancel-define">Cancelar</button>' +
+        '<button type="button" class="btn btn--primary" data-action="save-define">Guardar</button>' +
+        '<button type="button" class="link" data-action="cancel-define">Cancelar</button>' +
       '</div>';
       return html;
     }
 
-    // vista Sesión: la acción, la hora de inicio y el tiempo transcurrido
-    function sesionHtml() {
+    // pantalla de sesión: en curso o en cierre
+    function sessionScreen() {
       var s = Core.openSession(STATE);
-      if (!s) return '<p class="muted">No hay ninguna sesión abierta.</p>';
-      var task = findTaskUi(s.taskId);
-
-      var html = '';
-      if (VIEW.reentry) {
-        html += '<p class="notice">Sesión abierta desde ' + esc(fmtDateTime(s.startedAt)) + '</p>';
+      if (!s) {
+        return '<div class="empty"><p>No hay ninguna sesión abierta.</p>' +
+          '<button type="button" class="btn btn--quiet" data-action="go" data-view="hoy">Ir a Hoy</button></div>';
       }
-      html += '<p class="eyebrow">En curso</p>';
-      html += '<p class="action-big">' + esc(task ? task.nextAction : '(tarea no encontrada)') + '</p>';
+      return VIEW.name === 'cerrar' ? cerrarHtml(s) : sesionHtml(s);
+    }
+
+    // sesión en curso: acción, anillo con el tiempo transcurrido y un solo botón
+    function sesionHtml(s) {
+      var task = findTaskUi(s.taskId);
+      var ms = Core.sessionDuration(s, now());
+      var html = '<div class="session">';
+      if (VIEW.reentry) {
+        html += '<p class="notice">Sesión abierta desde el ' + esc(fmtStamp(s.startedAt)) + '.</p>';
+      }
+      html += '<p class="kicker">En curso</p>';
+      html += '<p class="hero">' + esc(task ? task.nextAction : '(tarea no encontrada)') + '</p>';
       if (task && task.outcome) {
         html += '<p class="for-outcome">Para: ' + esc(task.outcome) + '</p>';
       }
-      html += '<dl class="meta">' +
-        '<div><dt>Inicio</dt><dd>' + esc(fmtDateTime(s.startedAt)) + '</dd></div>' +
-        '<div><dt>Transcurrido</dt><dd id="elapsed">' + esc(fmtDur(Core.sessionDuration(s, now()))) + '</dd></div>' +
-      '</dl>';
-      html += '<div class="stack"><button type="button" class="btn big" data-action="finish">Listo</button></div>';
+      html += '<div class="ring-stage"><div class="ring-wrap">' +
+        '<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">' +
+          '<circle class="ring-track" cx="50" cy="50" r="46"></circle>' +
+          '<circle class="ring-sweep" cx="50" cy="50" r="46" style="stroke-dashoffset:' + ringOffset(ms) + '"></circle>' +
+        '</svg>' +
+        '<div class="ring-label"><strong id="elapsed">' + esc(fmtDur(ms)) + '</strong>' +
+          '<span>desde las ' + esc(fmtClock(s.startedAt)) + '</span></div>' +
+      '</div></div>';
+      html += '<div class="stack"><button type="button" class="btn btn--primary" data-action="finish">Listo</button></div>';
+      html += '</div>';
       return html;
     }
 
     // cierre de la sesión en tres preguntas encadenadas
-    function cerrarHtml() {
-      var s = Core.openSession(STATE);
-      if (!s) return '<p class="muted">No hay ninguna sesión abierta.</p>';
+    function cerrarHtml(s) {
       var task = findTaskUi(s.taskId);
       var step = VIEW.step || 1;
 
-      var html = '<h2 class="view-title">Cerrar la sesión</h2>';
+      var html = '<div class="session"><p class="kicker">Cerrar la sesión</p>';
       if (step === 1) {
-        html += '<p class="q">¿Avanzaste?</p>';
-        html += '<div class="stack">' +
-          '<button type="button" class="btn" data-action="cl-progress" data-value="yes">Sí</button>' +
-          '<button type="button" class="btn" data-action="cl-progress" data-value="some">Algo</button>' +
-          '<button type="button" class="btn" data-action="cl-progress" data-value="no">No</button>' +
+        html += '<p class="q">¿Avanzaste?</p><div class="results">' +
+          '<button type="button" class="result" data-action="cl-progress" data-value="yes">Sí, avancé bien</button>' +
+          '<button type="button" class="result" data-action="cl-progress" data-value="some">Avancé algo</button>' +
+          '<button type="button" class="result" data-action="cl-progress" data-value="no">Me trabé</button>' +
         '</div>';
       } else if (step === 2) {
-        html += '<p class="q">¿Terminaste la tarea?</p>';
-        html += '<div class="stack">' +
-          '<button type="button" class="btn" data-action="cl-finished" data-value="yes">Sí</button>' +
-          '<button type="button" class="btn ghost" data-action="cl-finished" data-value="no">No, sigue</button>' +
+        html += '<p class="q">¿Terminaste la tarea?</p><div class="results">' +
+          '<button type="button" class="result" data-action="cl-finished" data-value="yes">Sí, la terminé</button>' +
+          '<button type="button" class="result" data-action="cl-finished" data-value="no">Todavía no</button>' +
         '</div>';
       } else {
         var def = task ? (task.nextAction || '') : '';
-        html += '<p class="q">¿Cuál es el siguiente paso cuando vuelvas?</p>';
-        html += '<label class="field"><span>Siguiente acción</span>' +
-          '<input id="cl-next" type="text" autocomplete="off" value="' + esc(def) + '"></label>';
-        html += '<div class="stack"><button type="button" class="btn big" data-action="cl-confirm">Confirmar</button></div>';
+        html += '<p class="q">¿Cuál es el siguiente paso cuando vuelvas?</p>' +
+          '<label class="field"><span>Siguiente acción</span>' +
+          '<input id="cl-next" type="text" autocomplete="off" value="' + esc(def) + '"></label>' +
+          '<div class="stack"><button type="button" class="btn btn--primary" data-action="cl-confirm">Guardar y cerrar</button></div>';
       }
       html += '<div class="stack"><button type="button" class="link" data-action="cl-cancel">Cancelar</button></div>';
+      html += '</div>';
       return html;
     }
 
-    // menú: exportar, importar y borrar todo
+    // Semana: lo que trabajaste, de lunes a hoy; un día vacío es solo un día vacío
+    function semanaHtml() {
+      var today = localDate();
+      var days = weekUpToToday(today);
+      var banner = sessionBanner();
+
+      // datos de cada día: sesiones cerradas y, solo hoy, lo que queda en el plan
+      var perDay = days.map(function (ds) {
+        var range = localDayRange(ds);
+        var sessions = Core.sessionsBetween(STATE, range.startIso, range.endIso);
+        var planned = [];
+        if (ds === today) {
+          var already = {};
+          sessions.forEach(function (x) { already[x.taskId] = true; });
+          Core.todayPlan(STATE, today).forEach(function (it) {
+            if (it.task && !already[it.taskId]) planned.push(it.task);
+          });
+        }
+        return { ds: ds, sessions: sessions, planned: planned };
+      });
+
+      var hasData = perDay.some(function (d) { return d.sessions.length || d.planned.length; });
+      if (!hasData) {
+        return banner + '<div class="empty">' +
+          '<p>Todavía no has trabajado ninguna sesión esta semana.<br>Cuando cierres una, aparecerá aquí por día.</p>' +
+          '<button type="button" class="btn btn--quiet" data-action="go" data-view="hoy">Ir a Hoy</button></div>';
+      }
+
+      var html = banner;
+      perDay.forEach(function (d) {
+        html += '<div class="day' + (d.ds === today ? ' today' : '') + '">' +
+          '<div class="day-head"><span class="d-name">' + esc(fmtDayName(d.ds)) + '</span>' +
+          '<span class="d-date">' + esc(fmtDayDate(d.ds)) + '</span></div>';
+        if (d.sessions.length || d.planned.length) {
+          html += '<ul class="day-items">';
+          d.sessions.forEach(function (x) {
+            var t = Core.taskById(STATE, x.taskId);
+            html += '<li class="d-item"><span class="dot dot--' + outcomeKind(x) + '"></span>' +
+              '<span>' + esc(t ? t.title : '(tarea eliminada)') + '</span>' +
+              '<span class="d-dur">' + esc(fmtDur(Core.sessionDuration(x, x.endedAt))) + '</span></li>';
+          });
+          d.planned.forEach(function (t) {
+            html += '<li class="d-item planned"><span>' + esc(t.nextAction) + '</span>' +
+              '<span class="tag">en el plan</span></li>';
+          });
+          html += '</ul>';
+        } else {
+          html += '<p class="day-empty">Sin sesiones</p>';
+        }
+        html += '</div>';
+      });
+      return html;
+    }
+
+    // Progreso: cifras neutras y el registro completo, que nunca se borra
+    function progresoHtml() {
+      var stats = Core.sessionStats(STATE);
+      var log = Core.closedSessions(STATE);
+      var html = sessionBanner();
+
+      html += '<div class="panel"><div class="figures">' +
+        '<div class="figure"><strong>' + stats.count + '</strong><span>sesiones</span></div>' +
+        '<div class="figure"><strong>' + esc(fmtDurShort(stats.totalMs)) + '</strong><span>tiempo</span></div>' +
+        '<div class="figure"><strong>' + stats.completedTasks + '</strong><span>tareas hechas</span></div>' +
+      '</div></div>';
+
+      if (log.length === 0) {
+        html += '<div class="empty"><p>Cuando cierres tu primera sesión aparecerá aquí.<br>El registro no se borra nunca.</p></div>';
+        return html;
+      }
+
+      html += '<p class="section-label">Registro</p><ul class="log">';
+      log.forEach(function (x) {
+        var t = Core.taskById(STATE, x.taskId);
+        html += '<li><div class="log-head">' +
+          '<span>' + esc(fmtStamp(x.startedAt)) + '</span>' +
+          '<span class="l-task">' + esc(t ? t.title : '(tarea eliminada)') + '</span>' +
+          '<span class="l-dur">' + esc(fmtDur(Core.sessionDuration(x, x.endedAt))) + '</span>' +
+        '</div>' +
+        '<div class="log-outcome"><span class="dot dot--' + outcomeKind(x) + '"></span><span>' + esc(outcomeWord(x)) + '</span></div>' +
+        (x.nextStep ? '<span class="log-step">Siguiente: ' + esc(x.nextStep) + '</span>' : '') +
+        '</li>';
+      });
+      html += '</ul>';
+      return html;
+    }
+
+    // menú: exportar, importar, borrar todo y una nota de sincronización
     function menuHtml() {
-      var html = '<h2 class="view-title">Menú</h2>';
+      var html = '';
       if (VIEW.importError) {
         html += '<p class="notice">No se pudo importar: ' + esc(VIEW.importError) + '</p>';
       }
       html += '<div class="stack">';
-      html += '<button type="button" class="btn ghost" data-action="export">Exportar JSON</button>';
-      html += '<label class="btn ghost filelabel">Importar JSON' +
+      html += '<button type="button" class="btn btn--quiet" data-action="export">Exportar</button>';
+      html += '<label class="btn btn--quiet filelabel">Importar' +
         '<input id="importfile" type="file" accept="application/json,.json"></label>';
       if (!VIEW.confirmWipe) {
-        html += '<button type="button" class="btn ghost" data-action="wipe-ask">Borrar todo</button>';
+        html += '<button type="button" class="btn btn--quiet" data-action="wipe-ask">Borrar todo</button>';
       } else {
-        html += '<div class="notice">¿Seguro? Se borran todas las tareas y sesiones.</div>';
-        html += '<button type="button" class="btn" data-action="wipe-yes">Sí, borrar todo</button>';
-        html += '<button type="button" class="btn ghost" data-action="wipe-no">Cancelar</button>';
+        html += '<p class="notice">Esto borra todas las tareas y sesiones. No se puede deshacer.</p>';
+        html += '<button type="button" class="btn btn--primary" data-action="wipe-yes">Sí, borrar todo</button>';
+        html += '<button type="button" class="link" data-action="wipe-no">Cancelar</button>';
       }
       html += '</div>';
-      html += '<div class="stack"><button type="button" class="link" data-action="toggle-menu">Cerrar menú</button></div>';
+      if (SYNC !== 'off') {
+        html += '<p class="section-label">Sincronización</p><p class="notice">' +
+          (SYNC === 'localonly'
+            ? 'Ahora mismo se guarda solo en este equipo. Se volverá a sincronizar cuando haya conexión.'
+            : 'Los cambios se sincronizan con tu espacio en la nube.') + '</p>';
+      }
       return html;
     }
 
@@ -693,16 +1028,22 @@
       }
     }
 
-    // ---------- tiempo transcurrido ----------
+    // ---------- tiempo transcurrido: el intervalo solo repinta, nunca cuenta ni guarda ----------
     function startElapsed() {
       stopElapsed();
-      elapsedTimer = setInterval(function () {
-        var s = Core.openSession(STATE);
-        var el = document.getElementById('elapsed');
-        if (!s || !el) { stopElapsed(); return; }
-        // el intervalo solo repinta; no cuenta ni guarda
-        el.textContent = fmtDur(Core.sessionDuration(s, now()));
-      }, 1000);
+      tickElapsed();
+      elapsedTimer = setInterval(tickElapsed, 1000);
+    }
+    function tickElapsed() {
+      var s = Core.openSession(STATE);
+      var el = document.getElementById('elapsed');
+      if (!s || !el) { stopElapsed(); return; }
+      var ms = Core.sessionDuration(s, now());
+      el.textContent = fmtDur(ms);
+      if (!REDUCE) {
+        var sweep = document.querySelector('.ring-sweep');
+        if (sweep) sweep.style.strokeDashoffset = ringOffset(ms);
+      }
     }
     function stopElapsed() {
       if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
@@ -716,8 +1057,12 @@
           ? Core.migrate(loaded)
           : Core.emptyState();
         SAVE = 'saved';
-        // reentrada: si hay una sesión abierta se muestra la vista Sesión; si no, Hoy
         VIEW = Core.openSession(STATE) ? { name: 'sesion', reentry: true } : { name: 'hoy' };
+        render();
+      }, function () {
+        STATE = Core.emptyState();
+        SAVE = 'saved';
+        VIEW = { name: 'hoy' };
         render();
       });
     }

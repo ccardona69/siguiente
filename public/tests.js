@@ -486,6 +486,91 @@
     assert(/^[0-9a-z]+$/.test(Core.uid()));
   });
 
+  // --- consultas nuevas: registro y progreso ---
+
+  test('taskById devuelve la tarea buscada y null si no existe', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    assertEqual(Core.taskById(d.state, d.id).id, d.id);
+    assertEqual(Core.taskById(d.state, 'no-existe'), null);
+  });
+
+  test('closedSessions excluye la abierta y ordena de más reciente a más antigua', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.closeSession(s, { progress: 'some', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    var closed = Core.closedSessions(s);
+    assertEqual(closed.length, 2, 'solo las cerradas');
+    assert(closed[0].endedAt > closed[1].endedAt, 'más reciente primero');
+  });
+
+  test('sessionsBetween filtra por startedAt: inferior inclusivo, superior exclusivo', function () {
+    var clock = fakeClock('2026-03-02T08:00:00.000Z');
+    var d = seed(clock, { session: true, date: '2026-03-02' });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    var start = '2026-03-02T00:00:00.000Z';
+    var end = '2026-03-09T00:00:00.000Z';
+    assertEqual(Core.sessionsBetween(s, start, end).length, 1, 'dentro de la semana');
+    assertEqual(Core.sessionsBetween(s, start, '2026-03-02T08:00:00.000Z').length, 0, 'límite superior exclusivo');
+    assertEqual(Core.sessionsBetween(s, '2026-03-02T08:00:00.000Z', end).length, 1, 'límite inferior inclusivo');
+  });
+
+  test('sessionsBetween ordena de más antigua a más reciente y omite las abiertas', function () {
+    var clock = fakeClock('2026-03-02T08:00:00.000Z');
+    var d = seed(clock, { session: true, date: '2026-03-02' });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(24);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.closeSession(s, { progress: 'some', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(24);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    var list = Core.sessionsBetween(s, '2026-03-02T00:00:00.000Z', '2026-03-09T00:00:00.000Z');
+    assertEqual(list.length, 2, 'la sesión abierta no cuenta');
+    assert(list[0].startedAt < list[1].startedAt, 'ascendente por inicio');
+  });
+
+  test('sessionStats suma sesiones cerradas, tiempo y tareas terminadas', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    clock.advanceHours(2);
+    s = Core.closeSession(s, { progress: 'yes', finished: true }, clock()).state;
+    var stats = Core.sessionStats(s);
+    assertEqual(stats.count, 2, 'dos sesiones cerradas');
+    assertEqual(stats.totalMs, 3 * 3600 * 1000, '1 h + 2 h');
+    assertEqual(stats.completedTasks, 1, 'una tarea terminada');
+  });
+
+  test('sessionStats sobre un estado vacío devuelve ceros', function () {
+    assertEqual(Core.sessionStats(Core.emptyState()), { count: 0, totalMs: 0, completedTasks: 0 });
+  });
+
+  test('las consultas nuevas no mutan el estado recibido', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    var snap = JSON.stringify(s);
+    Core.taskById(s, d.id);
+    Core.closedSessions(s);
+    Core.sessionsBetween(s, '2026-01-01T00:00:00.000Z', '2026-01-08T00:00:00.000Z');
+    Core.sessionStats(s);
+    assertEqual(JSON.stringify(s), snap, 'estado intacto');
+  });
+
   // --- no-mutación general ---
 
   test('los casos de uso no mutan el estado recibido', function () {

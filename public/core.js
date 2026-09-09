@@ -352,6 +352,48 @@
     return ms > 0 ? ms : 0;
   }
 
+  // consulta: una tarea por id, o null
+  function taskById(state, taskId) {
+    return findTask(state, taskId);
+  }
+
+  // consulta: sesiones cerradas, de la más reciente a la más antigua
+  function closedSessions(state) {
+    return state.sessions
+      .filter(function (s) { return s.endedAt; })
+      .sort(function (a, b) {
+        return a.endedAt < b.endedAt ? 1 : a.endedAt > b.endedAt ? -1 : 0;
+      });
+  }
+
+  // consulta: sesiones cerradas que empezaron dentro de [startIso, endIso), más antiguas primero
+  // la interfaz calcula los límites locales del día o de la semana y los pasa como marcas ISO
+  function sessionsBetween(state, startIso, endIso) {
+    var from = toMs(startIso);
+    var to = toMs(endIso);
+    return state.sessions
+      .filter(function (s) {
+        if (!s.endedAt || !s.startedAt) return false;
+        var t = toMs(s.startedAt);
+        return t >= from && t < to;
+      })
+      .sort(function (a, b) {
+        return a.startedAt < b.startedAt ? -1 : a.startedAt > b.startedAt ? 1 : 0;
+      });
+  }
+
+  // consulta: totales para la vista Progreso (sesiones cerradas, tiempo sumado, tareas terminadas)
+  function sessionStats(state) {
+    var closed = closedSessions(state);
+    var totalMs = closed.reduce(function (sum, s) {
+      return sum + sessionDuration(s, s.endedAt);
+    }, 0);
+    var completedTasks = state.tasks.filter(function (t) {
+      return t.status === 'done';
+    }).length;
+    return { count: closed.length, totalMs: totalMs, completedTasks: completedTasks };
+  }
+
   // objeto público único
   var SiguienteCore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -373,7 +415,11 @@
     todayPlan: todayPlan,
     openSession: openSession,
     firstActionOf: firstActionOf,
-    sessionDuration: sessionDuration
+    sessionDuration: sessionDuration,
+    taskById: taskById,
+    closedSessions: closedSessions,
+    sessionsBetween: sessionsBetween,
+    sessionStats: sessionStats
   };
 
   // expone el núcleo como global y, en Node, también por module.exports

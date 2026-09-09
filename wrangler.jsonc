@@ -1,8 +1,20 @@
-// Worker de solo estáticos: sirve la carpeta public/ tal cual, sin código de servidor.
+// Worker de "Siguiente": sirve public/ como estáticos y expone /api/state para sincronizar.
+// El estado se guarda como un blob JSON en KV. Sigue sin build, sin dependencias y sin npm install.
 {
   "name": "siguiente",
   "compatibility_date": "2026-09-08",
+  "main": "worker.js",
   "assets": {
-    "directory": "./public"
-  }
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "kv_namespaces": [
+    // Crea el namespace con:  npx wrangler kv namespace create SIGUIENTE_KV
+    // y pega aquí el id que imprime.
+    { "binding": "SIGUIENTE_KV", "id": "REEMPLAZA_CON_EL_ID_DEL_NAMESPACE_KV" }
+  ]
+  // Token de acceso opcional (recomendado si la URL es pública):
+  //   npx wrangler secret put SYNC_TOKEN
+  // La app lo toma de la URL la primera vez con  ?t=EL_TOKEN
 }
