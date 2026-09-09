@@ -1,0 +1,8 @@
+// Worker de solo estáticos: sirve la carpeta public/ tal cual, sin código de servidor.
+{
+  "name": "siguiente",
+  "compatibility_date": "2026-09-08",
+  "assets": {
+    "directory": "./public"
+  }
+}

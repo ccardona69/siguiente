@@ -14,8 +14,8 @@ Sistema personal de un solo usuario para empezar, avanzar y retomar tareas. Resp
 - Fuera de alcance salvo petición explícita: gamificación, rachas, IA, calendarios, recordatorios, estadísticas, cuentas, multiusuario, backend, sincronización (hasta la Fase 1.5).
 
 ## Reglas técnicas
-- Archivos: index.html (interfaz), core.js (dominio + casos de uso + serialización, sin DOM), tests.js (pruebas), tests.html (runner en navegador), README.md.
-- Cero dependencias, cero build, cero CDN, cero red. Sin package.json, sin node_modules, sin npm install, sin TypeScript, sin frameworks de UI ni de pruebas. Todo funciona abriendo index.html con doble clic, sin internet.
+- Archivos de la app en public/: index.html (interfaz), core.js (dominio + casos de uso + serialización, sin DOM), tests.js (pruebas), tests.html (runner en navegador). En la raíz: README.md, CLAUDE.md y wrangler.jsonc (config de Cloudflare Workers, Worker de solo estáticos que sirve public/).
+- Cero dependencias, cero build, cero CDN, cero red. Sin package.json, sin node_modules, sin npm install, sin TypeScript, sin frameworks de UI ni de pruebas. Todo funciona abriendo public/index.html con doble clic, sin internet.
 - Scripts clásicos (script src). Prohibido import/export: los módulos ES no cargan desde file://. core.js expone un único objeto global "SiguienteCore" mediante globalThis y, si existe module.exports, también lo exporta.
 - core.js no puede mencionar document, window, localStorage, alert, setTimeout ni Date.now. Recibe el reloj now() por inyección y debe ejecutarse en Node sin cambios.
 - Ids con un uid() propio (aleatorio + tiempo en base36).
@@ -30,5 +30,5 @@ Sistema personal de un solo usuario para empezar, avanzar y retomar tareas. Resp
 ## Forma de trabajo
 - Trabajar solo en el alcance de la fase indicada. Ante ambigüedad, preguntar antes de inventar. Las mejoras se proponen en una lista aparte; no se implementan.
 - Antes de escribir código, presentar un plan breve y esperar confirmación.
-- Antes de entregar: node tests.js en verde, grep de palabras prohibidas en core.js sin resultados, sin URLs externas, commit con mensaje descriptivo.
+- Antes de entregar: node public/tests.js en verde, grep de palabras prohibidas en public/core.js sin resultados, grep -rnE "https?://" public/ sin resultados, commit con mensaje descriptivo.
 - Cada fase termina con un commit etiquetado (fase-1, fase-1.5, fase-2...).

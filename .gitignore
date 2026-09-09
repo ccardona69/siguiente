@@ -10,3 +10,7 @@ Thumbs.db
 # Ejecución
 *.log
 siguiente.json
+
+# Cloudflare Wrangler
+.wrangler/
+node_modules/
