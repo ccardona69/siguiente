@@ -267,15 +267,20 @@
     // la ruta es relativa; solo funciona cuando la app se sirve desde su propio origen
     var SYNC_PATH = '/api/state';
 
-    // lee un token de sincronización de la URL (?t=...) una vez y lo recuerda
+    // token de sincronización guardado solo en este equipo; nunca viaja en la URL
     function syncToken() {
       try {
-        var fromUrl = new URLSearchParams(location.search).get('t');
-        if (fromUrl) { localStorage.setItem('siguiente.token', fromUrl); return fromUrl; }
         return localStorage.getItem('siguiente.token') || '';
       } catch (e) {
         return '';
       }
+    }
+    function setSyncToken(value) {
+      var t = String(value == null ? '' : value).trim();
+      try {
+        if (t) localStorage.setItem('siguiente.token', t);
+        else localStorage.removeItem('siguiente.token');
+      } catch (e) {}
     }
 
     // cabeceras de autorización solo si hay token configurado
@@ -933,10 +938,19 @@
       }
       html += '</div>';
       if (SYNC !== 'off') {
-        html += '<p class="section-label">Sincronización</p><p class="notice">' +
-          (SYNC === 'localonly'
-            ? 'Ahora mismo se guarda solo en este equipo. Se volverá a sincronizar cuando haya conexión.'
-            : 'Los cambios se sincronizan con tu espacio en la nube.') + '</p>';
+        var hasToken = !!syncToken();
+        html += '<p class="section-label">Sincronización</p>';
+        html += '<p class="notice">' + (SYNC === 'localonly'
+          ? 'Ahora mismo se guarda solo en este equipo. Se volverá a sincronizar cuando haya conexión.'
+          : 'Los cambios se sincronizan con tu espacio en la nube.') + '</p>';
+        html += '<div class="stack">' +
+          '<label class="field"><span>' +
+            (hasToken ? 'Cambiar el token de acceso' : 'Token de acceso (déjalo vacío si la URL no lo pide)') +
+          '</span><input id="synctoken" type="password" autocomplete="off" placeholder="' +
+            (hasToken ? 'hay un token guardado' : 'pega aquí el token') + '"></label>' +
+          '<button type="button" class="btn btn--quiet" data-action="save-token">Guardar token</button>' +
+          (hasToken ? '<button type="button" class="link" data-action="clear-token">Quitar el token de este equipo</button>' : '') +
+        '</div>';
       }
       return html;
     }
@@ -1025,6 +1039,23 @@
       } else if (action === 'wipe-no') {
         VIEW.confirmWipe = false;
         render();
+      } else if (action === 'save-token') {
+        var tk = document.getElementById('synctoken');
+        if (tk && tk.value.trim()) {
+          setSyncToken(tk.value);
+          VIEW = { name: 'hoy' };
+          // recarga con el nuevo token para traer lo que ya haya en la nube
+          adapter.load().then(function (loaded) {
+            STATE = usableState(loaded);
+            SAVE = 'saved';
+            render();
+          }, function () { render(); });
+        } else {
+          render();
+        }
+      } else if (action === 'clear-token') {
+        setSyncToken('');
+        render();
       }
     }
 
@@ -1050,12 +1081,17 @@
     }
 
     // ---------- arranque ----------
+    // normaliza lo cargado a un estado usable
+    function usableState(loaded) {
+      return (loaded && typeof loaded === 'object' && !Array.isArray(loaded))
+        ? Core.migrate(loaded)
+        : Core.emptyState();
+    }
+
     function init() {
       document.getElementById('app').addEventListener('click', onClick);
       adapter.load().then(function (loaded) {
-        STATE = (loaded && typeof loaded === 'object' && !Array.isArray(loaded))
-          ? Core.migrate(loaded)
-          : Core.emptyState();
+        STATE = usableState(loaded);
         SAVE = 'saved';
         VIEW = Core.openSession(STATE) ? { name: 'sesion', reentry: true } : { name: 'hoy' };
         render();

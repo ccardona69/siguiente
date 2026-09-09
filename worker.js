@@ -19,13 +19,18 @@ export default {
     }
 
     // token compartido opcional: si SYNC_TOKEN está definido, se exige
-    if (!authorized(request, url, env)) {
+    if (!authorized(request, env)) {
       return json({ error: 'no autorizado' }, 401);
     }
 
     if (request.method === 'GET') {
       const stored = await env.SIGUIENTE_KV.get(STATE_KEY);
-      return json({ state: stored ? JSON.parse(stored) : null });
+      if (!stored) return json({ state: null });
+      try {
+        return json({ state: JSON.parse(stored) });
+      } catch (e) {
+        return json({ error: 'el estado guardado no se puede leer' }, 500);
+      }
     }
 
     if (request.method === 'PUT') {
@@ -53,13 +58,13 @@ function json(data, status = 200, extra = {}) {
 }
 
 // valida el token compartido solo si el Worker tiene SYNC_TOKEN
-function authorized(request, url, env) {
+// solo por cabecera Authorization: nunca se lee de la URL, que acabaría en los logs
+function authorized(request, env) {
   const expected = env.SYNC_TOKEN;
   if (!expected) return true;
   const header = request.headers.get('Authorization') || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
-  const token = bearer || url.searchParams.get('t') || '';
-  return token === expected;
+  return bearer === expected;
 }
 
 // el cuerpo debe ser un objeto JSON con schemaVersion 1

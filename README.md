@@ -60,6 +60,9 @@ Navegación inferior de cuatro pestañas:
 - **Exportar**: descarga todo el estado como `siguiente.json`.
 - **Importar**: valida y reemplaza. Si el archivo es inválido no toca nada y avisa.
 - **Borrar todo**: con confirmación.
+- **Sincronización** (solo en la URL publicada): pega el token de acceso si el
+  Worker lo exige. Se guarda en ese navegador y viaja en la cabecera
+  `Authorization`, nunca en la URL.
 
 El indicador junto al menú muestra el estado del guardado. En `file://`:
 "Guardado" / "Guardando…" / "No se pudo guardar". En la URL publicada:
@@ -108,9 +111,9 @@ Desde `C:\Users\dav\siguiente`:
    `REEMPLAZA_CON_EL_ID_DEL_NAMESPACE_KV`.
 3. *(Opcional, recomendado si la URL es pública)* `npx wrangler secret put SYNC_TOKEN`
    y escribe una frase larga. Con eso, `/api/state` exige `Authorization: Bearer
-   <token>`. La app lo toma de la URL la primera vez: abre
-   `https://siguiente.TU-SUBDOMINIO.workers.dev/?t=EL_TOKEN` una sola vez y queda
-   recordado en ese navegador.
+   <token>`. En la app, abre **Menú → Sincronización**, pega el token y pulsa
+   "Guardar token": queda guardado solo en ese navegador y se envía en la
+   cabecera, nunca en la URL.
 4. `npx wrangler deploy` — al terminar imprime la URL
    `https://siguiente.TU-SUBDOMINIO.workers.dev`.
 5. Abre esa URL en el celular y usa el menú del navegador →
