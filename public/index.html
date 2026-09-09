@@ -4,28 +4,9 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#17150F">
+  <meta name="theme-color" content="#090B10">
   <title>Siguiente</title>
   <style>
-    :root {
-      color-scheme: dark;
-      --bg: #17150F;
-      --surface: #211E16;
-      --surface-2: #2B271D;
-      --text: #EDE6D6;
-      --text-dim: #A69E8B;
-      --text-faint: #726B5A;
-      --line: #332F24;
-      --accent: #F0B429;
-      --accent-ink: #1A1710;
-      --done: #8FB48A;
-      --progress: #E0A458;
-      --stuck: #B99A8C;
-      --radius: 10px;
-      --radius-lg: 14px;
-      --maxw: 30rem;
-      --font: -apple-system, BlinkMacSystemFont, "Segoe UI Variable", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
     body {
@@ -224,6 +205,218 @@
     @media (min-width: 32rem) {
       #app { padding-top: 28px; }
     }
+
+    /* Tema definitivo: mesa de estudio nocturna */
+    :root {
+      color-scheme: dark;
+      --bg: #090B10;
+      --surface: #111520;
+      --surface-2: #1A2030;
+      --text: #E7EAF2;
+      --text-dim: #9299AB;
+      --text-faint: #656D80;
+      --line: rgba(231, 234, 242, .09);
+      --accent: #818CF8;
+      --accent-ink: #090B10;
+      --done: #70B9A8;
+      --progress: #CDA86F;
+      --stuck: #BD8474;
+      --radius: 15px;
+      --radius-lg: 22px;
+      --maxw: 390px;
+      --font: system-ui, "Segoe UI", Roboto, sans-serif;
+    }
+
+    html { min-width: 320px; background: #05070B; }
+    body {
+      min-height: 100vh;
+      background-color: #07090E;
+      background-image: repeating-linear-gradient(0deg, transparent 0, transparent 31px, rgba(129, 140, 248, .025) 31px, rgba(129, 140, 248, .025) 32px);
+      font-family: var(--font);
+    }
+    #app {
+      min-height: 100vh;
+      padding: max(18px, env(safe-area-inset-top)) 20px calc(104px + env(safe-area-inset-bottom));
+      background: var(--bg);
+      box-shadow: 0 0 70px rgba(0, 0, 0, .34);
+    }
+    ::selection { background: rgba(129, 140, 248, .25); }
+
+    /* Cabecera sobria con marca, vista y guardado */
+    .appbar { align-items: flex-start; min-height: 58px; margin-bottom: 18px; }
+    .appbar-title { min-width: 0; margin-right: auto; }
+    .appbar .wordmark { margin: 0 0 3px; color: var(--text-dim); font-size: 11px; font-weight: 600; }
+    .appbar h1 { margin: 0; font-size: 27px; font-weight: 680; line-height: 1.15; letter-spacing: -.04em; }
+    .appbar-tools { display: flex; align-items: center; gap: 7px; padding-top: 4px; }
+    .saveind { max-width: 98px; overflow: hidden; color: var(--text-faint); font-size: 10px; text-align: right; text-overflow: ellipsis; }
+    .iconbtn { width: 36px; height: 36px; margin: 0; border: 1px solid var(--line); border-radius: 50%; color: var(--text-dim); background: rgba(129, 140, 248, .05); }
+    .iconbtn:hover { color: var(--text); background: rgba(129, 140, 248, .1); }
+
+    /* Captura rápida sin añadir fricción */
+    .capture {
+      min-height: 50px;
+      margin-bottom: 20px;
+      padding: 13px 16px;
+      border-color: var(--line);
+      border-radius: 16px;
+      color: var(--text);
+      background: var(--surface);
+      box-shadow: inset 3px 0 var(--accent);
+    }
+    .capture::placeholder { color: var(--text-faint); }
+    .capture:focus { border-color: rgba(129, 140, 248, .35); background: var(--surface-2); }
+
+    /* Botones y campos táctiles */
+    .btn { min-height: 52px; border-radius: 16px; font-weight: 680; }
+    .btn--primary { color: var(--accent-ink); background: var(--accent); box-shadow: 0 9px 26px rgba(105, 118, 239, .19); }
+    .btn--quiet { border-color: var(--line); color: var(--text); background: var(--surface-2); }
+    .btn--small { min-height: 40px; padding: 9px 13px; border-radius: 13px; font-size: 13px; }
+    .stack { gap: 9px; margin-top: 18px; }
+    .link { color: var(--text-dim); text-decoration-color: rgba(146, 153, 171, .4); }
+    .badge { border-color: var(--line); color: var(--text-dim); background: rgba(231, 234, 242, .035); }
+    .field { margin-top: 18px; }
+    .field span { color: var(--text-dim); font-size: 13px; }
+    .field input { min-height: 50px; border-color: var(--line); border-radius: 15px; background: var(--surface-2); }
+
+    /* Hoy: una sola acción dominante */
+    .now-card {
+      position: relative;
+      overflow: hidden;
+      padding: 21px 19px 19px 23px;
+      border: 1px solid rgba(129, 140, 248, .18);
+      border-radius: 25px;
+      background: var(--surface);
+    }
+    .now-card::before {
+      position: absolute;
+      top: 17px;
+      bottom: 17px;
+      left: 0;
+      width: 3px;
+      border-radius: 0 3px 3px 0;
+      background: var(--accent);
+      content: "";
+    }
+    .now-topline { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
+    .now-card .kicker { margin: 0; color: #AAB2FF; font-size: 10px; font-weight: 780; letter-spacing: .12em; }
+    .task-context { display: flex; align-items: center; min-width: 0; margin: 0; color: #CBD0DC; font-size: 11px; font-weight: 690; }
+    .task-context::before { flex: none; width: 7px; height: 7px; margin-right: 7px; border-radius: 50%; background: var(--accent); content: ""; }
+    .task-context span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .hero { font-size: 24px; font-weight: 640; line-height: 1.23; letter-spacing: -.035em; }
+    .for-outcome { margin-top: 17px; padding-top: 14px; border-top: 1px solid var(--line); color: var(--text-dim); font-size: 13px; }
+    .now-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 9px; margin-top: 19px; }
+    .now-actions .btn { width: auto; }
+    .now-actions .btn--quiet { min-width: 92px; }
+    .section-label { margin-top: 24px; color: var(--text-dim); font-size: 15px; font-weight: 650; }
+    .rows.tight { display: grid; gap: 9px; margin-top: 11px; }
+    .rows.tight > li { border: 1px solid var(--line); }
+    .later { position: relative; overflow: hidden; align-items: center; padding: 13px 14px 13px 18px !important; border-radius: 17px; background: rgba(17, 21, 32, .75); }
+    .later::before { position: absolute; top: 12px; bottom: 12px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--progress); content: ""; }
+    .later .txt { color: #DADDE6; font-size: 13px; font-weight: 620; }
+    .later .sub { color: var(--text-dim); font-size: 11px; font-weight: 400; }
+    .later .link { flex: none; font-size: 12px; }
+
+    /* Bandeja y definición */
+    .rows:not(.tight) { display: grid; gap: 10px; margin-top: 4px; }
+    .rows:not(.tight) > li {
+      position: relative;
+      overflow: hidden;
+      padding: 16px 15px 15px 18px;
+      border: 1px solid var(--line);
+      border-radius: 19px;
+      background: rgba(17, 21, 32, .76);
+    }
+    .rows:not(.tight) > li::before { position: absolute; top: 13px; bottom: 13px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); content: ""; }
+    .task .t-title { color: #DDE1EA; font-size: 14px; font-weight: 650; }
+    .task .t-next { color: var(--text-dim); font-size: 12px; }
+    .task .t-actions { margin-top: 13px; }
+    .define-card { padding: 20px; border: 1px solid var(--line); border-radius: 23px; background: var(--surface); }
+    .define-for { padding-bottom: 15px; border-bottom: 1px solid var(--line); color: var(--text); font-size: 15px; font-weight: 620; }
+
+    /* Avisos y vacíos neutrales */
+    .notice { border-color: var(--line); border-radius: 15px; background: var(--surface); color: var(--text-dim); }
+    .notice.as-button { box-shadow: inset 3px 0 var(--accent); }
+    .empty { margin-top: 4px; padding: 34px 21px; border: 1px solid var(--line); border-radius: 23px; color: var(--text-dim); background: var(--surface); }
+    .empty .btn { margin-top: 6px; }
+
+    /* Sesión: el tiempo domina, calculado siempre desde marcas */
+    .view--full { min-height: calc(100vh - 42px - env(safe-area-inset-top)); padding-top: 0; }
+    .session { display: flex; min-height: calc(100vh - 72px - env(safe-area-inset-top)); flex-direction: column; }
+    .session-top { padding: 8px 2px 0; }
+    .session .task-context { margin-bottom: 13px; }
+    .session .hero { font-size: 24px; }
+    .session .for-outcome { border-top: 0; margin-top: 9px; padding-top: 0; }
+    .ring-stage { padding: 42px 0 32px; }
+    .ring-wrap { width: 220px; height: 220px; }
+    .ring-track { stroke: rgba(129, 140, 248, .12); }
+    .ring-sweep { stroke: var(--accent); }
+    .ring-label strong { font-size: 44px; font-weight: 600; }
+    .ring-label span { color: var(--text-dim); }
+    .session-end { margin-top: auto; padding-bottom: 10px; }
+    .close-card { margin-top: 16px; padding: 19px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); }
+    .close-card .kicker { color: var(--text-dim); }
+    .q { font-size: 21px; font-weight: 650; letter-spacing: -.025em; }
+    .results { gap: 8px; }
+    .result { min-height: 49px; border-color: var(--line); border-radius: 14px; background: var(--surface-2); }
+
+    /* Semana: tarjetas por día con riel continuo */
+    .week-stack { display: grid; gap: 11px; }
+    .day { position: relative; overflow: hidden; padding: 16px 15px 15px 18px; border: 1px solid var(--line); border-radius: 20px; background: rgba(17, 21, 32, .76); }
+    .day:first-child { border-top: 1px solid var(--line); }
+    .day::before { position: absolute; top: 14px; bottom: 14px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); content: ""; }
+    .day-head { gap: 7px; }
+    .day-head .d-name { color: #DDE1EA; font-size: 13px; }
+    .day.today .d-name { color: #AEB6FF; }
+    .day-items { gap: 7px; margin-top: 12px; padding-left: 1px; }
+    .d-item { padding: 9px 10px; border-radius: 11px; color: #D7DBE5; background: rgba(129, 140, 248, .055); font-size: 12px; }
+    .d-item .d-dur { font-size: 11px; }
+    .day-empty { margin-top: 10px; }
+
+    /* Progreso: cifras y registro sin presión */
+    .panel { padding: 0; border: 0; background: transparent; }
+    .figures { gap: 8px; }
+    .figure { min-width: 0; min-height: 96px; padding: 13px 10px; border: 1px solid var(--line); border-radius: 17px; background: var(--surface); }
+    .figure:first-child { padding-left: 10px; }
+    .figure + .figure { border-left: 1px solid var(--line); }
+    .figure strong { font-size: 22px; }
+    .figure span { color: var(--text-dim); font-size: 10px; line-height: 1.3; }
+    .log { display: grid; gap: 8px; margin-top: 11px; }
+    .log > li { position: relative; overflow: hidden; padding: 12px 13px 12px 17px; border: 1px solid var(--line); border-radius: 16px; background: rgba(17, 21, 32, .75); }
+    .log > li:first-child { border-top: 1px solid var(--line); }
+    .log > li::before { position: absolute; top: 11px; bottom: 11px; left: 0; width: 3px; border-radius: 0 3px 3px 0; background: var(--accent); content: ""; }
+    .log-head { gap: 3px 6px; font-size: 11px; }
+    .log-head .l-task { flex-basis: 100%; order: -1; color: #DDE1EA; font-size: 12px; }
+    .log-outcome, .log-step { font-size: 11px; }
+
+    /* Menú y navegación flotante */
+    .menu-card { padding: 3px 0; }
+    .filelabel { display: grid; place-items: center; }
+    .tabbar {
+      bottom: max(10px, env(safe-area-inset-bottom));
+      width: calc(100% - 24px);
+      max-width: 366px;
+      padding: 6px;
+      border: 1px solid rgba(231, 234, 242, .1);
+      border-radius: 22px;
+      background: rgba(17, 21, 32, .97);
+      box-shadow: 0 -10px 28px rgba(9, 11, 16, .42);
+    }
+    .tab { min-height: 56px; border-radius: 16px; color: var(--text-faint); }
+    .tab[aria-current="page"] { color: #CBD0FF; background: rgba(129, 140, 248, .1); }
+    .tab[aria-current="page"]::before { display: none; }
+    .tab svg { width: 19px; height: 19px; }
+
+    :focus-visible { outline-color: var(--accent); }
+    @media (min-width: 32rem) {
+      #app { padding-top: 26px; border-right: 1px solid rgba(231, 234, 242, .05); border-left: 1px solid rgba(231, 234, 242, .05); }
+    }
+    @media (max-width: 350px) {
+      #app { padding-right: 15px; padding-left: 15px; }
+      .hero { font-size: 22px; }
+      .saveind { display: none; }
+      .now-actions { grid-template-columns: 1fr; }
+      .now-actions .btn { width: 100%; }
+    }
   </style>
 </head>
 <body>
@@ -367,6 +560,7 @@
     function pad(n) { return (n < 10 ? '0' : '') + n; }
 
     var DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+    var DIAS_LARGOS = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
     var MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
     // 'YYYY-MM-DD' a Date local a medianoche
@@ -393,6 +587,10 @@
     }
     function fmtDayName(s) { return DIAS[parseLocalDate(s).getDay()]; }
     function fmtDayDate(s) { var d = parseLocalDate(s); return d.getDate() + ' ' + MESES[d.getMonth()]; }
+    function fmtHeaderDate(s) {
+      var d = parseLocalDate(s);
+      return DIAS_LARGOS[d.getDay()] + ' ' + d.getDate();
+    }
     // marca ISO a '9 abr, 14:03'
     function fmtStamp(iso) {
       var d = new Date(iso);
@@ -628,13 +826,13 @@
 
     // barra superior común
     function appbarHtml() {
-      var titles = { hoy: 'Hoy', bandeja: 'Bandeja', definir: 'Definir', semana: 'Esta semana', progreso: 'Progreso' };
+      var titles = { hoy: fmtHeaderDate(localDate()), bandeja: 'Bandeja', definir: 'Definir', semana: 'Esta semana', progreso: 'Tu avance' };
       var title = VIEW.menu ? 'Menú' : (titles[VIEW.name] || 'Siguiente');
       return '<div class="appbar">' +
-        '<h1>' + esc(title) + '</h1>' +
-        '<span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
+        '<div class="appbar-title"><p class="wordmark">Siguiente</p><h1>' + esc(title) + '</h1></div>' +
+        '<div class="appbar-tools"><span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
         '<button type="button" class="iconbtn" data-action="toggle-menu" aria-label="' +
-          (VIEW.menu ? 'Cerrar menú' : 'Menú') + '">' + (VIEW.menu ? ICON.close : ICON.menu) + '</button>' +
+          (VIEW.menu ? 'Cerrar menú' : 'Menú') + '">' + (VIEW.menu ? ICON.close : ICON.menu) + '</button></div>' +
       '</div>';
     }
 
@@ -694,20 +892,22 @@
       var first = plan[0];
       var rest = plan.slice(1);
       var html = sessionBanner();
-      html += '<p class="kicker">Ahora</p>';
-      html += '<p class="hero">' + esc(first.task.nextAction) + '</p>';
+      html += '<section class="now-card"><div class="now-topline">' +
+        '<p class="kicker">AHORA</p><p class="task-context"><span>' + esc(first.task.title) + '</span></p></div>' +
+        '<p class="hero">' + esc(first.task.nextAction) + '</p>';
       if (first.task.outcome) {
-        html += '<p class="for-outcome">Para: ' + esc(first.task.outcome) + '</p>';
+        html += '<p class="for-outcome"><strong>Para:</strong> ' + esc(first.task.outcome) + '</p>';
       }
-      html += '<div class="stack">' +
+      html += '<div class="now-actions">' +
         '<button type="button" class="btn btn--primary" data-action="start" data-id="' + esc(first.task.id) + '">Empezar</button>' +
         '<button type="button" class="btn btn--quiet" data-action="adjust" data-id="' + esc(first.task.id) + '">Ajustar</button>' +
-      '</div>';
+      '</div></section>';
       if (rest.length) {
         html += '<p class="section-label">Después</p><ul class="rows tight">';
         rest.forEach(function (it) {
           html += '<li class="later"><span class="txt">' + esc(it.task.nextAction) +
-            (it.task.outcome ? '<span class="sub">Para: ' + esc(it.task.outcome) + '</span>' : '') +
+            '<span class="sub">' + esc(it.task.title) +
+            (it.task.outcome ? ' · Para: ' + esc(it.task.outcome) : '') + '</span>' +
             '</span><button type="button" class="link" data-action="tofirst" data-id="' + esc(it.task.id) + '">Subir</button></li>';
         });
         html += '</ul>';
@@ -754,7 +954,7 @@
       var outcomeVal = ('draftOutcome' in VIEW) ? VIEW.draftOutcome : (task.outcome || '');
       var nextVal = ('draftNext' in VIEW) ? VIEW.draftNext : (task.nextAction || '');
 
-      var html = '<p class="define-for">' + esc(task.title) + '</p>';
+      var html = '<section class="define-card"><p class="define-for">' + esc(task.title) + '</p>'; 
       if (VIEW.defineError) html += '<p class="notice">' + esc(VIEW.defineError) + '</p>';
       html += '<label class="field"><span>Resultado deseado (opcional)</span>' +
         '<input id="d-outcome" type="text" autocomplete="off" value="' + esc(outcomeVal) + '"></label>';
@@ -763,7 +963,7 @@
       html += '<div class="stack">' +
         '<button type="button" class="btn btn--primary" data-action="save-define">Guardar</button>' +
         '<button type="button" class="link" data-action="cancel-define">Cancelar</button>' +
-      '</div>';
+      '</div></section>';
       return html;
     }
 
@@ -785,12 +985,12 @@
       if (VIEW.reentry) {
         html += '<p class="notice">Sesión abierta desde el ' + esc(fmtStamp(s.startedAt)) + '.</p>';
       }
-      html += '<p class="kicker">En curso</p>';
+      html += '<div class="session-top"><p class="task-context"><span>' + esc(task ? task.title : '(tarea no encontrada)') + '</span></p>';
       html += '<p class="hero">' + esc(task ? task.nextAction : '(tarea no encontrada)') + '</p>';
       if (task && task.outcome) {
         html += '<p class="for-outcome">Para: ' + esc(task.outcome) + '</p>';
       }
-      html += '<div class="ring-stage"><div class="ring-wrap">' +
+      html += '</div><div class="ring-stage"><div class="ring-wrap">' +
         '<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">' +
           '<circle class="ring-track" cx="50" cy="50" r="46"></circle>' +
           '<circle class="ring-sweep" cx="50" cy="50" r="46" style="stroke-dashoffset:' + ringOffset(ms) + '"></circle>' +
@@ -798,7 +998,7 @@
         '<div class="ring-label"><strong id="elapsed">' + esc(fmtDur(ms)) + '</strong>' +
           '<span>desde las ' + esc(fmtClock(s.startedAt)) + '</span></div>' +
       '</div></div>';
-      html += '<div class="stack"><button type="button" class="btn btn--primary" data-action="finish">Listo</button></div>';
+      html += '<div class="session-end"><button type="button" class="btn btn--primary" data-action="finish">Listo</button></div>';
       html += '</div>';
       return html;
     }
@@ -808,7 +1008,7 @@
       var task = findTaskUi(s.taskId);
       var step = VIEW.step || 1;
 
-      var html = '<div class="session"><p class="kicker">Cerrar la sesión</p>';
+      var html = '<div class="session"><section class="close-card"><p class="kicker">Cerrar la sesión</p>'; 
       if (step === 1) {
         html += '<p class="q">¿Avanzaste?</p><div class="results">' +
           '<button type="button" class="result" data-action="cl-progress" data-value="yes">Sí, avancé bien</button>' +
@@ -828,7 +1028,7 @@
           '<div class="stack"><button type="button" class="btn btn--primary" data-action="cl-confirm">Guardar y cerrar</button></div>';
       }
       html += '<div class="stack"><button type="button" class="link" data-action="cl-cancel">Cancelar</button></div>';
-      html += '</div>';
+      html += '</section></div>';
       return html;
     }
 
@@ -860,7 +1060,7 @@
           '<button type="button" class="btn btn--quiet" data-action="go" data-view="hoy">Ir a Hoy</button></div>';
       }
 
-      var html = banner;
+      var html = banner + '<div class="week-stack">';
       perDay.forEach(function (d) {
         html += '<div class="day' + (d.ds === today ? ' today' : '') + '">' +
           '<div class="day-head"><span class="d-name">' + esc(fmtDayName(d.ds)) + '</span>' +
@@ -883,6 +1083,7 @@
         }
         html += '</div>';
       });
+      html += '</div>';
       return html;
     }
 
@@ -921,7 +1122,7 @@
 
     // menú: exportar, importar, borrar todo y una nota de sincronización
     function menuHtml() {
-      var html = '';
+      var html = '<section class="menu-card">';
       if (VIEW.importError) {
         html += '<p class="notice">No se pudo importar: ' + esc(VIEW.importError) + '</p>';
       }
@@ -952,6 +1153,7 @@
           (hasToken ? '<button type="button" class="link" data-action="clear-token">Quitar el token de este equipo</button>' : '') +
         '</div>';
       }
+      html += '</section>';
       return html;
     }
 

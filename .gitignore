@@ -14,3 +14,6 @@ siguiente.json
 # Cloudflare Wrangler
 .wrangler/
 node_modules/
+
+# Material de trabajo, no del producto
+bocetos/

@@ -10,7 +10,7 @@ puedo dar ahora?"**.
   adaptador de almacenamiento remoto para sincronizar entre dispositivos.
 - **Fase 2** — dos vistas de solo lectura sobre lo que ya se guarda: **Semana**
   (lo trabajado de lunes a hoy) y **Progreso** (cifras neutras y el registro
-  completo).
+  completo), con la interfaz nocturna definitiva de la aplicación.
 
 ## Uso
 

@@ -10,11 +10,10 @@
     "run_worker_first": ["/api/*"]
   },
   "kv_namespaces": [
-    // Crea el namespace con:  npx wrangler kv namespace create SIGUIENTE_KV
-    // y pega aquí el id que imprime.
-    { "binding": "SIGUIENTE_KV", "id": "REEMPLAZA_CON_EL_ID_DEL_NAMESPACE_KV" }
+    // Creado con:  npx wrangler kv namespace create SIGUIENTE_KV
+    { "binding": "SIGUIENTE_KV", "id": "deace42306cf4300ac7f4bb578ad3d80" }
   ]
   // Token de acceso opcional (recomendado si la URL es pública):
   //   npx wrangler secret put SYNC_TOKEN
-  // La app lo toma de la URL la primera vez con  ?t=EL_TOKEN
+  // Se configura en Menú → Sincronización y solo se envía por Authorization.
 }

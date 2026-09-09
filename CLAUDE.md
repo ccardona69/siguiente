@@ -27,7 +27,7 @@ Sistema personal de un solo usuario para empezar, avanzar y retomar tareas. Resp
 - schemaVersion dentro del estado y función migrate() preparada para versiones futuras.
 - Todo texto escrito por la persona se escapa antes de insertarlo en HTML.
 - JavaScript vanilla ES2020, CSS propio con variables. Identificadores en inglés; textos de interfaz y comentarios en español. Funciones cortas; un comentario de una línea al inicio de cada bloque.
-- Lenguaje visual (Fase 1.5): tema oscuro cálido (carbón con un único acento ámbar), navegación inferior de cuatro pestañas, listas planas separadas por filete, una sola cifra grande por pantalla (la acción actual en Hoy, el tiempo en Sesión). Sin mayúsculas sostenidas de etiqueta, sin cadenas "A · B · C", sin marco de teléfono ni barra de estado falsa, sin color por curso. El acento se gasta en un solo sitio por pantalla.
+- Lenguaje visual definitivo: tema de mesa de estudio nocturna (tinta y grafito con un único acento índigo), navegación inferior flotante de cuatro pestañas, superficies mate redondeadas y un riel lateral discreto para dar continuidad. Una sola cifra grande por pantalla (la acción actual en Hoy, el tiempo en Sesión). Sin cadenas "A · B · C", sin marco de teléfono ni barra de estado falsa, sin color por curso. El acento se gasta en un solo sitio principal por pantalla.
 - Archivos completos: sin fragmentos, sin TODOs.
 
 ## Forma de trabajo
