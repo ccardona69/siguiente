@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Siguiente</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #141414;
+      --muted: #616161;
+      --line: #dcdcdc;
+      --field: #f3f3f3;
+      --accent: #141414;
+      --accent-fg: #ffffff;
+      --notice-bg: #f0f0f0;
+      --radius: 12px;
+      --maxw: 32rem;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font: 17px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-text-size-adjust: 100%;
+    }
+    #app { max-width: var(--maxw); margin: 0 auto; padding: 16px 16px 40px; }
+
+    /* cabecera: captura y navegación */
+    header.top { margin-bottom: 20px; }
+    #capture {
+      width: 100%;
+      padding: 14px 16px;
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--field);
+      color: var(--fg);
+    }
+    #capture:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+    .toprow { display: flex; align-items: center; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+    .nav { display: flex; gap: 6px; }
+    .navbtn {
+      border: 1px solid var(--line);
+      background: transparent;
+      color: var(--fg);
+      padding: 7px 12px;
+      border-radius: 999px;
+      font: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+    .navbtn.active { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+    .saveind { margin-left: auto; color: var(--muted); font-size: 0.85rem; }
+    .link {
+      border: 0;
+      background: transparent;
+      color: var(--fg);
+      text-decoration: underline;
+      padding: 6px 4px;
+      font: inherit;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    /* botones grandes */
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 15px 18px;
+      border: 1px solid var(--accent);
+      border-radius: var(--radius);
+      background: var(--accent);
+      color: var(--accent-fg);
+      font: inherit;
+      font-weight: 600;
+      text-align: center;
+      cursor: pointer;
+    }
+    .btn.big { padding: 18px; font-size: 1.05rem; }
+    .btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); }
+    .btn.small { width: auto; padding: 10px 14px; font-size: 0.9rem; }
+    .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 16px; }
+
+    /* vista Hoy / Sesión */
+    .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.75rem; color: var(--muted); margin: 0 0 6px; }
+    .action-big { font-size: 1.6rem; line-height: 1.25; font-weight: 700; margin: 0 0 8px; }
+    .for-outcome { color: var(--muted); margin: 0 0 4px; }
+    .view-title, .later-title { font-size: 1rem; margin: 28px 0 8px; }
+    .later { list-style: none; padding: 0; margin: 0; }
+    .later li {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      padding: 12px 0;
+      border-top: 1px solid var(--line);
+    }
+    .later-text { flex: 1; }
+
+    /* bandeja */
+    .tasks { list-style: none; padding: 0; margin: 0; }
+    .task { padding: 14px 0; border-top: 1px solid var(--line); }
+    .task:first-child { border-top: 0; }
+    .task-title { font-weight: 600; }
+    .task-next { color: var(--muted); font-size: 0.9rem; margin-top: 2px; }
+    .task-actions { display: flex; gap: 8px; align-items: center; margin-top: 10px; flex-wrap: wrap; }
+    .badge {
+      border: 1px solid var(--accent);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+
+    /* formularios */
+    .field { display: block; margin-top: 14px; }
+    .field span { display: block; font-size: 0.9rem; color: var(--muted); margin-bottom: 6px; }
+    .field input {
+      width: 100%;
+      padding: 13px 14px;
+      font: inherit;
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--field);
+      color: var(--fg);
+    }
+    .field input:focus { outline: 2px solid var(--fg); outline-offset: 1px; }
+    .q { font-size: 1.15rem; font-weight: 600; margin: 10px 0 0; }
+    .define-for { color: var(--muted); margin: 4px 0 0; }
+
+    /* avisos neutros (sin color de alerta en esta fase) */
+    .notice {
+      background: var(--notice-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin: 12px 0;
+    }
+    .session-banner {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: var(--notice-bg);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      margin-bottom: 16px;
+      font: inherit;
+      cursor: pointer;
+    }
+    .muted { color: var(--muted); }
+
+    /* meta de sesión */
+    dl.meta { margin: 18px 0 0; }
+    dl.meta > div { display: flex; justify-content: space-between; padding: 8px 0; border-top: 1px solid var(--line); }
+    dl.meta dt { color: var(--muted); }
+    dl.meta dd { margin: 0; font-weight: 600; }
+
+    /* estado vacío */
+    .empty { text-align: center; padding: 32px 0; }
+    .empty-msg { font-size: 1.15rem; margin-bottom: 18px; }
+
+    /* menú: importar */
+    .filelabel { position: relative; overflow: hidden; }
+    .filelabel input[type=file] { position: absolute; top: 0; right: 0; bottom: 0; left: 0; opacity: 0; cursor: pointer; }
+
+    @media (min-width: 30rem) {
+      .btn.big { font-size: 1.1rem; }
+    }
+  </style>
+</head>
+<body>
+  <main id="app"></main>
+
+  <script src="core.js"></script>
+  <script>
+  (function () {
+    'use strict';
+
+    var Core = globalThis.SiguienteCore;
+
+    // ---------- adaptador de almacenamiento ----------
+    // única puerta a la persistencia; en la Fase 1.5 se añadirá uno remoto sin tocar el resto
+    var LocalStorageAdapter = {
+      key: 'siguiente.v1',
+      load: function () {
+        var key = this.key;
+        return new Promise(function (resolve) {
+          try {
+            var raw = localStorage.getItem(key);
+            resolve(raw ? JSON.parse(raw) : null);
+          } catch (e) {
+            resolve(null);
+          }
+        });
+      },
+      save: function (state) {
+        var key = this.key;
+        return new Promise(function (resolve, reject) {
+          try {
+            localStorage.setItem(key, JSON.stringify(state));
+            resolve();
+          } catch (e) {
+            reject(e);
+          }
+        });
+      }
+    };
+    var adapter = LocalStorageAdapter;
+
+    // ---------- reloj y fecha, que la interfaz inyecta al núcleo ----------
+    // marca ISO 8601 UTC
+    function now() { return new Date().toISOString(); }
+    // fecha local en formato YYYY-MM-DD
+    function localDate() {
+      var d = new Date();
+      var p = function (n) { return (n < 10 ? '0' : '') + n; };
+      return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+    }
+
+    // ---------- estado de la aplicación ----------
+    var STATE = Core.emptyState();      // única fuente de verdad
+    var VIEW = { name: 'hoy' };          // vista actual y datos transitorios de interfaz
+    var SAVE = 'saved';                  // 'saved' | 'saving' | 'error'
+    var elapsedTimer = null;             // solo repinta el tiempo transcurrido
+
+    // ---------- utilidades ----------
+    // escapa el texto de la persona antes de insertarlo en HTML
+    function esc(value) {
+      return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+      });
+    }
+
+    // fecha y hora local legible
+    function fmtDateTime(iso) {
+      var d = new Date(iso);
+      return d.toLocaleDateString('es') + ' ' +
+        d.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+    }
+
+    // duración legible a partir de milisegundos
+    function fmtDur(ms) {
+      var totalMin = Math.floor(ms / 60000);
+      if (totalMin < 1) return 'menos de 1 min';
+      var h = Math.floor(totalMin / 60);
+      var m = totalMin % 60;
+      if (h < 1) return m + ' min';
+      return h + ' h ' + (m < 10 ? '0' : '') + m + ' min';
+    }
+
+    // texto del indicador de guardado
+    function saveText() {
+      return SAVE === 'saving' ? 'Guardando…' : SAVE === 'error' ? 'Error al guardar' : 'Guardado';
+    }
+
+    // busca una tarea por id
+    function findTaskUi(id) {
+      var list = STATE.tasks.filter(function (t) { return t.id === id; });
+      return list.length ? list[0] : null;
+    }
+
+    // ---------- guardado ----------
+    // adopta un estado nuevo, repinta y guarda solo si cambió
+    function apply(next) {
+      if (next === STATE) { render(); return; }
+      STATE = Core.stampSave(next, now());   // sube revisión y sella savedAt justo antes de save()
+      SAVE = 'saving';
+      render();
+      adapter.save(STATE).then(function () {
+        SAVE = 'saved';
+        refreshSaveIndicator();
+      }, function () {
+        SAVE = 'error';
+        refreshSaveIndicator();
+      });
+    }
+
+    // actualiza solo el indicador, sin repintar toda la vista
+    function refreshSaveIndicator() {
+      var el = document.getElementById('saveind');
+      if (el) el.textContent = saveText();
+    }
+
+    // ---------- acciones de interfaz ----------
+    // captura: Enter guarda una tarea con solo título
+    function doCapture(title) {
+      var r = Core.captureTask(STATE, { title: title }, now());
+      if (r.ok) apply(r.state);
+      // título vacío: no se hace nada, la captura no puede completarse
+    }
+
+    // elegir para hoy; si falta la siguiente acción, se abre el formulario y se reintenta
+    function doChooseForToday(taskId) {
+      var r = Core.chooseForToday(STATE, { taskId: taskId, date: localDate() }, now());
+      if (r.ok) { apply(r.state); return; }
+      VIEW = { name: 'definir', taskId: taskId, back: VIEW.name, choose: true };
+      render();
+    }
+
+    // subir una tarea al primer lugar del plan de hoy
+    function doMoveToFirst(taskId) {
+      var r = Core.moveToFirst(STATE, { date: localDate(), taskId: taskId });
+      if (r.ok) apply(r.state);
+    }
+
+    // empezar: abre una sesión y muestra la vista Sesión
+    function doStart(taskId) {
+      var r = Core.startSession(STATE, { taskId: taskId }, now());
+      if (r.ok) { VIEW = { name: 'sesion' }; apply(r.state); }
+    }
+
+    // guardar la definición (usada por Definir, por Elegir sin acción y por Ajustar)
+    function onSaveDefine() {
+      var o = document.getElementById('d-outcome');
+      var n = document.getElementById('d-next');
+      var outcome = o ? o.value : '';
+      var nextAction = n ? n.value : '';
+      var r = Core.defineTask(STATE, { taskId: VIEW.taskId, outcome: outcome, nextAction: nextAction }, now());
+      if (!r.ok) {
+        VIEW.defineError = r.error;
+        VIEW.draftOutcome = outcome;
+        VIEW.draftNext = nextAction;
+        render();
+        return;
+      }
+      var s = r.state;
+      if (VIEW.choose) {
+        var r2 = Core.chooseForToday(s, { taskId: VIEW.taskId, date: localDate() }, now());
+        if (r2.ok) s = r2.state;
+      }
+      VIEW = { name: VIEW.back || 'hoy' };
+      apply(s);
+    }
+
+    // cerrar la sesión con las respuestas del cierre
+    function doCloseSession(progress, finished, nextStep) {
+      var r = Core.closeSession(STATE, { progress: progress, finished: finished, nextStep: nextStep }, now());
+      if (!r.ok) return;
+      stopElapsed();
+      VIEW = { name: 'hoy' };
+      apply(r.state);
+    }
+
+    // exportar el estado como archivo JSON
+    function doExport() {
+      var text = Core.exportState(STATE);
+      var blob = new Blob([text], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'siguiente.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    // importar un archivo JSON: valida y reemplaza; si es inválido no toca nada y avisa
+    function doImport(file) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        var r = Core.importState(STATE, String(reader.result));
+        if (!r.ok) { VIEW = { name: 'hoy', menu: true, importError: r.error }; render(); return; }
+        VIEW = { name: 'hoy' };
+        apply(r.state);
+      };
+      reader.onerror = function () {
+        VIEW = { name: 'hoy', menu: true, importError: 'No se pudo leer el archivo.' };
+        render();
+      };
+      reader.readAsText(file);
+    }
+
+    // borrar todo, tras confirmación
+    function doDeleteAll() {
+      stopElapsed();
+      VIEW = { name: 'hoy' };
+      apply(Core.emptyState());
+    }
+
+    // ---------- render ----------
+    function render() {
+      var app = document.getElementById('app');
+      var keepFocus = document.activeElement && document.activeElement.id === 'capture';
+
+      var body = VIEW.menu ? menuHtml() : viewHtml();
+      app.innerHTML = headerHtml() + '<section class="view">' + body + '</section>';
+      wire();
+
+      if (keepFocus) {
+        var c = document.getElementById('capture');
+        if (c) c.focus();
+      }
+
+      // el tiempo transcurrido solo se anima en la vista Sesión
+      if (VIEW.name === 'sesion' && !VIEW.menu) startElapsed(); else stopElapsed();
+    }
+
+    // cabecera común
+    function headerHtml() {
+      return '' +
+        '<header class="top">' +
+          '<input id="capture" type="text" autocomplete="off" ' +
+            'placeholder="¿Qué quieres avanzar?" aria-label="¿Qué quieres avanzar?">' +
+          '<div class="toprow">' +
+            '<nav class="nav">' +
+              navBtn('hoy', 'Hoy') +
+              navBtn('bandeja', 'Bandeja') +
+            '</nav>' +
+            '<span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
+            '<button type="button" class="link" data-action="toggle-menu">Menú</button>' +
+          '</div>' +
+        '</header>';
+    }
+
+    // botón de navegación
+    function navBtn(name, label) {
+      var active = (!VIEW.menu && VIEW.name === name) ? ' active' : '';
+      return '<button type="button" class="navbtn' + active + '" data-action="go" data-view="' + name + '">' +
+        esc(label) + '</button>';
+    }
+
+    // enruta a la vista actual
+    function viewHtml() {
+      switch (VIEW.name) {
+        case 'bandeja': return bandejaHtml();
+        case 'definir': return definirHtml();
+        case 'sesion': return sesionHtml();
+        case 'cerrar': return cerrarHtml();
+        default: return hoyHtml();
+      }
+    }
+
+    // aviso para volver a una sesión abierta desde otra vista
+    function sessionBanner() {
+      var s = Core.openSession(STATE);
+      if (!s || VIEW.name === 'sesion' || VIEW.name === 'cerrar') return '';
+      return '<button type="button" class="session-banner" data-action="go" data-view="sesion">' +
+        'Tienes una sesión abierta · Volver a la sesión</button>';
+    }
+
+    // vista Hoy: la primera acción del plan, y debajo el resto
+    function hoyHtml() {
+      var plan = Core.todayPlan(STATE, localDate()).filter(function (it) { return it.task; });
+      if (plan.length === 0) {
+        return '' +
+          '<div class="empty">' +
+            '<p class="empty-msg">Todavía no has elegido nada para hoy</p>' +
+            '<button type="button" class="btn" data-action="go" data-view="bandeja">Ir a la bandeja</button>' +
+          '</div>';
+      }
+      var first = plan[0];
+      var rest = plan.slice(1);
+      var html = sessionBanner();
+      html += '<p class="eyebrow">Ahora</p>';
+      html += '<p class="action-big">' + esc(first.task.nextAction) + '</p>';
+      if (first.task.outcome) {
+        html += '<p class="for-outcome">Para: ' + esc(first.task.outcome) + '</p>';
+      }
+      html += '<div class="stack">' +
+        '<button type="button" class="btn big" data-action="start" data-id="' + esc(first.task.id) + '">Empezar</button>' +
+        '<button type="button" class="btn ghost" data-action="adjust" data-id="' + esc(first.task.id) + '">Ajustar</button>' +
+      '</div>';
+      if (rest.length) {
+        html += '<h2 class="later-title">Después</h2><ul class="later">';
+        rest.forEach(function (it) {
+          html += '<li>' +
+            '<span class="later-text">' + esc(it.task.nextAction) + '</span>' +
+            '<button type="button" class="link" data-action="tofirst" data-id="' + esc(it.task.id) + '">' +
+              'Subir al primer lugar</button>' +
+          '</li>';
+        });
+        html += '</ul>';
+      }
+      return html;
+    }
+
+    // vista Bandeja: tareas en inbox o active, con dos acciones por tarea
+    function bandejaHtml() {
+      var tasks = Core.inbox(STATE);
+      var today = Core.todayPlan(STATE, localDate());
+      var inToday = {};
+      today.forEach(function (it) { inToday[it.taskId] = true; });
+
+      var html = sessionBanner() + '<h2 class="view-title">Bandeja</h2>';
+      if (tasks.length === 0) {
+        return html + '<p class="muted">La bandeja está vacía. Escribe arriba para capturar algo.</p>';
+      }
+      html += '<ul class="tasks">';
+      tasks.forEach(function (t) {
+        html += '<li class="task">';
+        html += '<div class="task-title">' + esc(t.title) + '</div>';
+        html += t.nextAction
+          ? '<div class="task-next">Siguiente: ' + esc(t.nextAction) + '</div>'
+          : '<div class="task-next muted">Sin siguiente acción</div>';
+        html += '<div class="task-actions">';
+        html += '<button type="button" class="btn ghost small" data-action="define" data-id="' + esc(t.id) + '">Definir</button>';
+        html += inToday[t.id]
+          ? '<span class="badge">Hoy</span>'
+          : '<button type="button" class="btn small" data-action="choose" data-id="' + esc(t.id) + '">Elegir para hoy</button>';
+        html += '</div></li>';
+      });
+      html += '</ul>';
+      return html;
+    }
+
+    // formulario único de definición
+    function definirHtml() {
+      var task = findTaskUi(VIEW.taskId);
+      if (!task) return '<p class="muted">No se encontró la tarea.</p>';
+      var outcomeVal = ('draftOutcome' in VIEW) ? VIEW.draftOutcome : (task.outcome || '');
+      var nextVal = ('draftNext' in VIEW) ? VIEW.draftNext : (task.nextAction || '');
+
+      var html = '<h2 class="view-title">Definir</h2>';
+      html += '<p class="define-for">' + esc(task.title) + '</p>';
+      if (VIEW.defineError) html += '<p class="notice">' + esc(VIEW.defineError) + '</p>';
+      html += '<label class="field"><span>Resultado deseado (opcional)</span>' +
+        '<input id="d-outcome" type="text" autocomplete="off" value="' + esc(outcomeVal) + '"></label>';
+      html += '<label class="field"><span>Siguiente acción</span>' +
+        '<input id="d-next" type="text" autocomplete="off" value="' + esc(nextVal) + '"></label>';
+      html += '<div class="stack">' +
+        '<button type="button" class="btn big" data-action="save-define">Guardar</button>' +
+        '<button type="button" class="btn ghost" data-action="cancel-define">Cancelar</button>' +
+      '</div>';
+      return html;
+    }
+
+    // vista Sesión: la acción, la hora de inicio y el tiempo transcurrido
+    function sesionHtml() {
+      var s = Core.openSession(STATE);
+      if (!s) return '<p class="muted">No hay ninguna sesión abierta.</p>';
+      var task = findTaskUi(s.taskId);
+
+      var html = '';
+      if (VIEW.reentry) {
+        html += '<p class="notice">Sesión abierta desde ' + esc(fmtDateTime(s.startedAt)) + '</p>';
+      }
+      html += '<p class="eyebrow">En curso</p>';
+      html += '<p class="action-big">' + esc(task ? task.nextAction : '(tarea no encontrada)') + '</p>';
+      if (task && task.outcome) {
+        html += '<p class="for-outcome">Para: ' + esc(task.outcome) + '</p>';
+      }
+      html += '<dl class="meta">' +
+        '<div><dt>Inicio</dt><dd>' + esc(fmtDateTime(s.startedAt)) + '</dd></div>' +
+        '<div><dt>Transcurrido</dt><dd id="elapsed">' + esc(fmtDur(Core.sessionDuration(s, now()))) + '</dd></div>' +
+      '</dl>';
+      html += '<div class="stack"><button type="button" class="btn big" data-action="finish">Listo</button></div>';
+      return html;
+    }
+
+    // cierre de la sesión en tres preguntas encadenadas
+    function cerrarHtml() {
+      var s = Core.openSession(STATE);
+      if (!s) return '<p class="muted">No hay ninguna sesión abierta.</p>';
+      var task = findTaskUi(s.taskId);
+      var step = VIEW.step || 1;
+
+      var html = '<h2 class="view-title">Cerrar la sesión</h2>';
+      if (step === 1) {
+        html += '<p class="q">¿Avanzaste?</p>';
+        html += '<div class="stack">' +
+          '<button type="button" class="btn" data-action="cl-progress" data-value="yes">Sí</button>' +
+          '<button type="button" class="btn" data-action="cl-progress" data-value="some">Algo</button>' +
+          '<button type="button" class="btn" data-action="cl-progress" data-value="no">No</button>' +
+        '</div>';
+      } else if (step === 2) {
+        html += '<p class="q">¿Terminaste la tarea?</p>';
+        html += '<div class="stack">' +
+          '<button type="button" class="btn" data-action="cl-finished" data-value="yes">Sí</button>' +
+          '<button type="button" class="btn ghost" data-action="cl-finished" data-value="no">No, sigue</button>' +
+        '</div>';
+      } else {
+        var def = task ? (task.nextAction || '') : '';
+        html += '<p class="q">¿Cuál es el siguiente paso cuando vuelvas?</p>';
+        html += '<label class="field"><span>Siguiente acción</span>' +
+          '<input id="cl-next" type="text" autocomplete="off" value="' + esc(def) + '"></label>';
+        html += '<div class="stack"><button type="button" class="btn big" data-action="cl-confirm">Confirmar</button></div>';
+      }
+      html += '<div class="stack"><button type="button" class="link" data-action="cl-cancel">Cancelar</button></div>';
+      return html;
+    }
+
+    // menú: exportar, importar y borrar todo
+    function menuHtml() {
+      var html = '<h2 class="view-title">Menú</h2>';
+      if (VIEW.importError) {
+        html += '<p class="notice">No se pudo importar: ' + esc(VIEW.importError) + '</p>';
+      }
+      html += '<div class="stack">';
+      html += '<button type="button" class="btn ghost" data-action="export">Exportar JSON</button>';
+      html += '<label class="btn ghost filelabel">Importar JSON' +
+        '<input id="importfile" type="file" accept="application/json,.json"></label>';
+      if (!VIEW.confirmWipe) {
+        html += '<button type="button" class="btn ghost" data-action="wipe-ask">Borrar todo</button>';
+      } else {
+        html += '<div class="notice">¿Seguro? Se borran todas las tareas y sesiones.</div>';
+        html += '<button type="button" class="btn" data-action="wipe-yes">Sí, borrar todo</button>';
+        html += '<button type="button" class="btn ghost" data-action="wipe-no">Cancelar</button>';
+      }
+      html += '</div>';
+      html += '<div class="stack"><button type="button" class="link" data-action="toggle-menu">Cerrar menú</button></div>';
+      return html;
+    }
+
+    // ---------- eventos ----------
+    function wire() {
+      var cap = document.getElementById('capture');
+      if (cap) {
+        cap.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter') return;
+          var value = cap.value;
+          cap.value = '';
+          doCapture(value);
+        });
+      }
+      var imp = document.getElementById('importfile');
+      if (imp) {
+        imp.addEventListener('change', function () {
+          if (imp.files && imp.files[0]) doImport(imp.files[0]);
+        });
+      }
+    }
+
+    // clic delegado sobre el contenedor
+    function onClick(e) {
+      var btn = e.target.closest ? e.target.closest('[data-action]') : null;
+      if (!btn) return;
+      var action = btn.getAttribute('data-action');
+      var id = btn.getAttribute('data-id');
+      var view = btn.getAttribute('data-view');
+      var value = btn.getAttribute('data-value');
+
+      if (action === 'go') {
+        VIEW = { name: view };
+        render();
+      } else if (action === 'toggle-menu') {
+        VIEW.menu = !VIEW.menu;
+        VIEW.confirmWipe = false;
+        VIEW.importError = null;
+        render();
+      } else if (action === 'define') {
+        VIEW = { name: 'definir', taskId: id, back: 'bandeja', choose: false };
+        render();
+      } else if (action === 'choose') {
+        doChooseForToday(id);
+      } else if (action === 'adjust') {
+        VIEW = { name: 'definir', taskId: id, back: 'hoy', choose: false };
+        render();
+      } else if (action === 'start') {
+        doStart(id);
+      } else if (action === 'tofirst') {
+        doMoveToFirst(id);
+      } else if (action === 'save-define') {
+        onSaveDefine();
+      } else if (action === 'cancel-define') {
+        VIEW = { name: VIEW.back || 'hoy' };
+        render();
+      } else if (action === 'finish') {
+        VIEW = { name: 'cerrar', step: 1, progress: null, finished: null };
+        render();
+      } else if (action === 'cl-progress') {
+        VIEW.progress = value;
+        VIEW.step = 2;
+        render();
+      } else if (action === 'cl-finished') {
+        if (value === 'yes') {
+          doCloseSession(VIEW.progress, true, null);
+        } else {
+          VIEW.finished = false;
+          VIEW.step = 3;
+          render();
+        }
+      } else if (action === 'cl-confirm') {
+        var nx = document.getElementById('cl-next');
+        doCloseSession(VIEW.progress, false, nx ? nx.value : '');
+      } else if (action === 'cl-cancel') {
+        VIEW = { name: 'sesion' };
+        render();
+      } else if (action === 'export') {
+        doExport();
+      } else if (action === 'wipe-ask') {
+        VIEW.confirmWipe = true;
+        render();
+      } else if (action === 'wipe-yes') {
+        doDeleteAll();
+      } else if (action === 'wipe-no') {
+        VIEW.confirmWipe = false;
+        render();
+      }
+    }
+
+    // ---------- tiempo transcurrido ----------
+    function startElapsed() {
+      stopElapsed();
+      elapsedTimer = setInterval(function () {
+        var s = Core.openSession(STATE);
+        var el = document.getElementById('elapsed');
+        if (!s || !el) { stopElapsed(); return; }
+        // el intervalo solo repinta; no cuenta ni guarda
+        el.textContent = fmtDur(Core.sessionDuration(s, now()));
+      }, 1000);
+    }
+    function stopElapsed() {
+      if (elapsedTimer) { clearInterval(elapsedTimer); elapsedTimer = null; }
+    }
+
+    // ---------- arranque ----------
+    function init() {
+      document.getElementById('app').addEventListener('click', onClick);
+      adapter.load().then(function (loaded) {
+        STATE = (loaded && typeof loaded === 'object' && !Array.isArray(loaded))
+          ? Core.migrate(loaded)
+          : Core.emptyState();
+        SAVE = 'saved';
+        // reentrada: si hay una sesión abierta se muestra la vista Sesión; si no, Hoy
+        VIEW = Core.openSession(STATE) ? { name: 'sesion', reentry: true } : { name: 'hoy' };
+        render();
+      });
+    }
+
+    init();
+  })();
+  </script>
+</body>
+</html>

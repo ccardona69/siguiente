@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pruebas — Siguiente</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --fg: #1a1a1a;
+      --muted: #5c5c5c;
+      --line: #d9d9d9;
+      --bien-bg: #e6f4ea;
+      --bien-fg: #14532d;
+      --mal-bg: #fdecec;
+      --mal-fg: #7a1616;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 24px 16px 48px;
+      background: var(--bg);
+      color: var(--fg);
+      font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    main { max-width: 46rem; margin: 0 auto; }
+    h1 { font-size: 1.3rem; margin: 0 0 4px; }
+    p.nota { color: var(--muted); margin: 0 0 20px; }
+    .resumen {
+      font-weight: 700;
+      font-size: 1.05rem;
+      padding: 12px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+    }
+    .resumen.bueno { background: var(--bien-bg); color: var(--bien-fg); }
+    .resumen.malo { background: var(--mal-bg); color: var(--mal-fg); }
+    ul.lista { list-style: none; padding: 0; margin: 16px 0 0; }
+    ul.lista li {
+      padding: 8px 12px;
+      border-radius: 6px;
+      margin-bottom: 4px;
+      font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.86rem;
+      white-space: pre-wrap;
+    }
+    ul.lista li.bien { background: var(--bien-bg); color: var(--bien-fg); }
+    ul.lista li.mal { background: var(--mal-bg); color: var(--mal-fg); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Pruebas del núcleo de Siguiente</h1>
+    <p class="nota">Se ejecutan al abrir esta página. Sin red, sin dependencias.</p>
+    <div id="resultado">Ejecutando…</div>
+  </main>
+  <script src="core.js"></script>
+  <script src="tests.js"></script>
+</body>
+</html>
