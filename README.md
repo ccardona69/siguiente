@@ -11,6 +11,9 @@ puedo dar ahora?"**.
 - **Fase 2** — dos vistas de solo lectura sobre lo que ya se guarda: **Semana**
   (lo trabajado de lunes a hoy) y **Progreso** (cifras neutras y el registro
   completo), con la interfaz nocturna definitiva de la aplicación.
+- **Fase 3** — menú de ajuste completo en Hoy (modificar, quitar del plan, terminar
+  tarea), ergonomía de captura continua, distinción sutil en Bandeja de tareas
+  por definir, tiempo acumulado por tarea y runner de pruebas interactivo.
 
 ## Uso
 
@@ -149,25 +152,21 @@ Cada caso de uso recibe `(estado, datos, now)` y devuelve `{ ok: true, state }` 
 - Sin envoltura: `emptyState`, `migrate`, `stampSave`, `exportState`, `uid`.
 - Consultas: `inbox`, `todayPlan(date)`, `openSession`, `firstActionOf(date)`,
   `sessionDuration(session, now)`, `taskById(id)`, `closedSessions`,
-  `sessionsBetween(startIso, endIso)`, `sessionStats`.
+  `sessionsBetween(startIso, endIso)`, `sessionStats`, `taskTotalDuration(taskId)`.
 
 `core.js` no usa `document`, `window`, `localStorage` ni `Date.now`; recibe el
 reloj por inyección y corre igual en Node. `sessionsBetween` recibe marcas ISO ya
 calculadas: el núcleo nunca decide qué día es "hoy" ni dónde empieza la semana.
 
-## Fuera de alcance (a revisar en la Fase 3)
+## Fuera de alcance (a revisar en la Fase 4)
 
-Pausar y reprogramar, menú de ajuste completo, revisión, atajos de teclado,
-deshacer, datos de ejemplo, notificaciones, gamificación y rachas. Un horario de
-clases real (aulas, horas) para la vista Semana: hoy es un registro de lo
-trabajado, no un calendario.
+Pausar y reprogramar, revisión semanal asistida, atajos de teclado,
+deshacer breve tras "Borrar todo", datos de ejemplo, notificaciones,
+gamificación y rachas. Un horario de clases real (aulas, horas) para la vista
+Semana: sigue siendo un registro de lo trabajado, no un calendario.
 
 Ideas surgidas al construir; **ninguna se implementa ahora**, el uso decide:
 
-- Restaurar el foco en el campo de captura para encadenar varias tareas.
 - Un "deshacer" breve tras "Borrar todo" y tras terminar una tarea.
-- Mostrar la duración total acumulada de una tarea (suma de sus sesiones).
-- Distinguir en la Bandeja las tareas sin siguiente acción de las que ya la tienen.
 - Validación de esquema más estricta al importar y en el Worker.
 - Indicador de guardado con marca de tiempo ("Guardado 14:03").
-- En `tests.html`, un botón para re-ejecutar sin recargar y la duración de la suite.

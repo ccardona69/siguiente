@@ -7,16 +7,11 @@
   // carga del núcleo según el entorno
   var Core = (typeof require !== 'undefined') ? require('./core.js') : globalThis.SiguienteCore;
 
-  var results = [];
+  var registry = [];
 
-  // registra una prueba y captura su fallo como dato
+  // registra una prueba para su posterior ejecución
   function test(name, fn) {
-    try {
-      fn();
-      results.push({ name: name, ok: true });
-    } catch (e) {
-      results.push({ name: name, ok: false, error: (e && e.message) || String(e) });
-    }
+    registry.push({ name: name, fn: fn });
   }
 
   // aserción simple
@@ -558,6 +553,29 @@
     assertEqual(Core.sessionStats(Core.emptyState()), { count: 0, totalMs: 0, completedTasks: 0 });
   });
 
+  test('taskTotalDuration suma sesiones cerradas de la tarea y omite abiertas y ajenas', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    clock.advanceHours(2);
+    s = Core.closeSession(s, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    // otra tarea con su propia sesión
+    var t2 = Core.captureTask(s, { title: 'Otra tarea' }, clock()).state;
+    var t2Id = t2.tasks[t2.tasks.length - 1].id;
+    clock.advanceHours(1);
+    t2 = Core.defineTask(t2, { taskId: t2Id, nextAction: 'Paso 1' }, clock()).state;
+    t2 = Core.startSession(t2, { taskId: t2Id }, clock()).state;
+    clock.advanceHours(5);
+    t2 = Core.closeSession(t2, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+
+    assertEqual(Core.taskTotalDuration(t2, d.id), 3 * 3600 * 1000, '1 h + 2 h para la primera tarea');
+    assertEqual(Core.taskTotalDuration(t2, t2Id), 5 * 3600 * 1000, '5 h para la segunda tarea');
+    assertEqual(Core.taskTotalDuration(t2, 'inexistente'), 0, 'cero para tarea inexistente');
+  });
+
   test('las consultas nuevas no mutan el estado recibido', function () {
     var clock = fakeClock(ISO);
     var d = seed(clock, { session: true });
@@ -568,6 +586,7 @@
     Core.closedSessions(s);
     Core.sessionsBetween(s, '2026-01-01T00:00:00.000Z', '2026-01-08T00:00:00.000Z');
     Core.sessionStats(s);
+    Core.taskTotalDuration(s, d.id);
     assertEqual(JSON.stringify(s), snap, 'estado intacto');
   });
 
@@ -585,39 +604,59 @@
     assertEqual(JSON.stringify(d.state), snap, 'el estado sembrado no cambió');
   });
 
-  // --- salida ---
+  // --- ejecución y salida ---
 
-  var failed = results.filter(function (r) { return !r.ok; });
-  var summary = (results.length - failed.length) + '/' + results.length + ' pruebas en verde';
+  function runAll() {
+    var results = [];
+    var t0 = Date.now();
+    for (var i = 0; i < registry.length; i++) {
+      var item = registry[i];
+      try {
+        item.fn();
+        results.push({ name: item.name, ok: true });
+      } catch (e) {
+        results.push({ name: item.name, ok: false, error: (e && e.message) || String(e) });
+      }
+    }
+    var duration = Date.now() - t0;
+    var failed = results.filter(function (r) { return !r.ok; });
+    var summary = (results.length - failed.length) + '/' + results.length + ' pruebas en verde';
+    var timedSummary = summary + ' (' + duration + ' ms)';
 
-  // en Node: imprime y termina con código 1 si algo falla
-  if (typeof process !== 'undefined' && process.exit) {
-    results.forEach(function (r) {
-      console.log((r.ok ? 'OK   ' : 'FALLA ') + r.name + (r.ok ? '' : '  ->  ' + r.error));
-    });
-    console.log('\n' + summary);
-    if (failed.length) process.exit(1);
+    // en Node: imprime y termina con código 1 si algo falla
+    if (typeof process !== 'undefined' && process.exit) {
+      results.forEach(function (r) {
+        console.log((r.ok ? 'OK   ' : 'FALLA ') + r.name + (r.ok ? '' : '  ->  ' + r.error));
+      });
+      console.log('\n' + summary);
+      if (failed.length) process.exit(1);
+    }
+
+    // en el navegador: pinta la lista en verde/rojo y actualiza el resumen
+    if (typeof document !== 'undefined') {
+      var root = document.getElementById('resultado') || document.body;
+      while (root.firstChild) root.removeChild(root.firstChild);
+      var head = document.createElement('p');
+      head.className = failed.length ? 'resumen malo' : 'resumen bueno';
+      head.textContent = timedSummary;
+      root.appendChild(head);
+      var ul = document.createElement('ul');
+      ul.className = 'lista';
+      results.forEach(function (r) {
+        var li = document.createElement('li');
+        li.className = r.ok ? 'bien' : 'mal';
+        li.textContent = (r.ok ? 'OK  ' : 'FALLA  ') + r.name + (r.ok ? '' : '  ->  ' + r.error);
+        ul.appendChild(li);
+      });
+      root.appendChild(ul);
+    }
+
+    // expone los resultados y la función para re-ejecutar
+    var report = { run: runAll, results: results, failed: failed, summary: timedSummary, durationMs: duration };
+    globalThis.SiguienteTests = report;
+    return report;
   }
 
-  // en el navegador: pinta la lista en verde/rojo
-  if (typeof document !== 'undefined') {
-    var root = document.getElementById('resultado') || document.body;
-    while (root.firstChild) root.removeChild(root.firstChild);
-    var head = document.createElement('p');
-    head.className = failed.length ? 'resumen malo' : 'resumen bueno';
-    head.textContent = summary;
-    root.appendChild(head);
-    var ul = document.createElement('ul');
-    ul.className = 'lista';
-    results.forEach(function (r) {
-      var li = document.createElement('li');
-      li.className = r.ok ? 'bien' : 'mal';
-      li.textContent = (r.ok ? 'OK  ' : 'FALLA  ') + r.name + (r.ok ? '' : '  ->  ' + r.error);
-      ul.appendChild(li);
-    });
-    root.appendChild(ul);
-  }
-
-  // expone los resultados por si otro entorno los necesita
-  globalThis.SiguienteTests = { results: results, failed: failed, summary: summary };
+  // ejecuta al cargar
+  runAll();
 })();

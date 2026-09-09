@@ -25,7 +25,18 @@
     }
     main { max-width: 46rem; margin: 0 auto; }
     h1 { font-size: 1.3rem; margin: 0 0 4px; }
-    p.nota { color: var(--muted); margin: 0 0 20px; }
+    p.nota { color: var(--muted); margin: 0; }
+    .topline { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+    .btn-rerun {
+      padding: 8px 14px;
+      font: 500 14px/1 inherit;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #f4f4f5;
+      color: var(--fg);
+      cursor: pointer;
+    }
+    .btn-rerun:hover { background: #e4e4e7; }
     .resumen {
       font-weight: 700;
       font-size: 1.05rem;
@@ -50,8 +61,13 @@
 </head>
 <body>
   <main>
-    <h1>Pruebas del núcleo de Siguiente</h1>
-    <p class="nota">Se ejecutan al abrir esta página. Sin red, sin dependencias.</p>
+    <div class="topline">
+      <div>
+        <h1>Pruebas del núcleo de Siguiente</h1>
+        <p class="nota">Se ejecutan al abrir esta página. Sin red, sin dependencias.</p>
+      </div>
+      <button type="button" id="btn-rerun" class="btn-rerun" onclick="window.SiguienteTests &amp;&amp; window.SiguienteTests.run()">Volver a ejecutar</button>
+    </div>
     <div id="resultado">Ejecutando…</div>
   </main>
   <script src="core.js"></script>

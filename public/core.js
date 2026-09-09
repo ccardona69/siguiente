@@ -394,6 +394,15 @@
     return { count: closed.length, totalMs: totalMs, completedTasks: completedTasks };
   }
 
+  // consulta: duración total acumulada de una tarea en milisegundos sumando sus sesiones cerradas
+  function taskTotalDuration(state, taskId) {
+    return state.sessions
+      .filter(function (s) { return s.taskId === taskId && s.endedAt; })
+      .reduce(function (sum, s) {
+        return sum + sessionDuration(s, s.endedAt);
+      }, 0);
+  }
+
   // objeto público único
   var SiguienteCore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -419,7 +428,8 @@
     taskById: taskById,
     closedSessions: closedSessions,
     sessionsBetween: sessionsBetween,
-    sessionStats: sessionStats
+    sessionStats: sessionStats,
+    taskTotalDuration: taskTotalDuration
   };
 
   // expone el núcleo como global y, en Node, también por module.exports
