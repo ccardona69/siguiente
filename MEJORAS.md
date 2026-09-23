@@ -30,11 +30,11 @@ regla técnica de cero dependencias. El dueño decide qué pasa a una fase.
 - **Archivos**: `public/index.html` (campo + filtro en el render).
 - **Esfuerzo**: pequeño-medio (S/M).
 
-## 3. Atajo de teclado para capturar desde cualquier vista
+## 3. Atajo de teclado para capturar desde cualquier vista (implementada en Fase 7)
 
 - **Problema**: capturar requiere volver a Hoy. El principio del producto dice
   que capturar debe costar lo mínimo (solo el título).
-- **Propuesta**: extender los atajos de Fase 5 con una tecla (p. ej. `n`) que
+- **Propuesta**: extender los atajos de Fase 5 con la tecla `n` que
   lleve el foco al campo de captura aunque se esté en Bandeja, Semana o
   Progreso. Si hay una sesión abierta con confirmación pendiente, no interfiere.
 - **Archivos**: `public/index.html` (manejador de teclado existente).

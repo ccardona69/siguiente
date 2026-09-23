@@ -1817,7 +1817,13 @@
         }
         if (e.metaKey || e.ctrlKey || e.altKey) return;
         var k = e.key;
-        if (k === '/') {
+        if (k === 'n') {
+          if (VIEW.name === 'cerrar') return;
+          e.preventDefault();
+          var capture = document.getElementById('capture');
+          if (capture) capture.focus();
+          else { VIEW = { name: 'hoy', focusCapture: true }; render(); }
+        } else if (k === '/') {
           e.preventDefault();
           var c = document.getElementById('capture');
           if (c) c.focus();
