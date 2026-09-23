@@ -37,7 +37,8 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 ### Recorrido
 
 1. **Capturar.** Escribe en el campo de arriba ("¿Qué quieres avanzar?") y pulsa
-   Enter. La tarea entra en la bandeja solo con título.
+   Enter. Desde Hoy se abre Bandeja mostrando la nueva tarea, guardada solo con
+   título; desde Bandeja puedes seguir capturando sin salir de ella.
 2. **Bandeja.** Cada tarea tiene "Definir" (resultado deseado opcional + siguiente
    acción obligatoria) y "Elegir para hoy". Si ya está en el plan de hoy, en su
    lugar aparece la marca "En el plan de hoy".
@@ -49,8 +50,9 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 4. **Sesión.** "Empezar" abre una sesión: acción, hora de inicio y tiempo
    transcurrido, que **cuenta hacia arriba** y se recalcula solo con las marcas de
    tiempo. El anillo da una vuelta por hora: es solo señal de que el tiempo corre,
-   no una cuenta atrás ni un objetivo. "Listo" abre el cierre: ¿Avanzaste? →
-   ¿Terminaste la tarea? → si sigue, ¿cuál es el siguiente paso cuando vuelvas?
+   no una cuenta atrás ni un objetivo. "Listo" pregunta solo «¿Avanzaste?»:
+   «Sí» o «No» cierran la sesión y conservan la siguiente acción. Para terminar
+   la tarea o cambiar esa acción, usa «Ajustar» desde Hoy.
 5. **Reentrada.** Si cierras con una sesión abierta, al reabrir se muestra esa
    sesión con un aviso neutro y la opción de cerrarla.
 

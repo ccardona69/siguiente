@@ -145,6 +145,7 @@
 
     /* Bandeja: entradas planas para que no se confundan con la acción actual */
     .task { padding: 20px 0 22px; }
+    .task--captured { margin-left: -14px; padding-left: 14px; border-radius: 8px; background: rgba(141, 155, 255, .08); box-shadow: inset 2px 0 var(--accent); scroll-margin-block: 110px; }
     .task .t-topline { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 10px; }
     .task .t-title { color: var(--text); font-size: 16px; font-weight: 600; }
     .task .t-tag { padding: 3px 8px; border: 1px solid var(--line); border-radius: 9px; color: var(--text-dim); font-size: 11px; }
@@ -612,13 +613,16 @@
     }
 
     // ---------- acciones de interfaz ----------
-    // captura: Enter guarda una tarea con solo título y mantiene el foco
+    // captura: desde Hoy muestra la nueva tarea en Bandeja; allí conserva el foco
     function doCapture(title) {
       var r = Core.captureTask(STATE, { title: title }, now());
-      if (r.ok) {
+      if (!r.ok) return;
+      if (VIEW.name === 'hoy') {
+        VIEW = { name: 'bandeja', capturedTaskId: r.state.tasks[r.state.tasks.length - 1].id };
+      } else {
         VIEW.focusCapture = true;
-        apply(r.state);
       }
+      apply(r.state);
     }
 
     // elegir para hoy; si falta la siguiente acción, se abre el formulario y se reintenta
@@ -719,15 +723,13 @@
       apply(s);
     }
 
-    // cerrar la sesión con las respuestas del cierre
-    function doCloseSession(progress, finished, nextStep) {
-      var prev = STATE;
-      var r = Core.closeSession(STATE, { progress: progress, finished: finished, nextStep: nextStep }, now());
+    // un sí o un no cierra la sesión, sin dar por terminada la tarea
+    function doCloseSession(progress) {
+      var r = Core.closeSession(STATE, { progress: progress, finished: false }, now());
       if (!r.ok) return;
       stopElapsed();
       VIEW = { name: 'hoy' };
       apply(r.state);
-      if (finished) setUndo(prev, 'Tarea terminada.');
     }
 
     // exportar el estado como archivo JSON
@@ -831,7 +833,7 @@
     // ---------- render ----------
     function render() {
       var app = document.getElementById('app');
-      var keepFocus = document.activeElement && document.activeElement.id === 'capture';
+      var keepFocus = !VIEW.capturedTaskId && document.activeElement && document.activeElement.id === 'capture';
       var full = (VIEW.name === 'sesion' || VIEW.name === 'cerrar') && !VIEW.menu;
 
       var body = VIEW.menu ? menuHtml() : viewHtml();
@@ -846,6 +848,14 @@
           c.focus();
           VIEW.focusCapture = false;
         }
+      }
+      if (VIEW.capturedTaskId) {
+        var captured = document.getElementById('captured-task');
+        if (captured) {
+          captured.focus({ preventScroll: true });
+          captured.scrollIntoView({ block: 'center' });
+        }
+        VIEW.capturedTaskId = null;
       }
       if (VIEW.name === 'sesion' && !VIEW.menu) startElapsed(); else stopElapsed();
     }
@@ -962,7 +972,9 @@
       tasks.forEach(function (t) {
         var isInbox = !t.nextAction;
         var dur = Core.taskTotalDuration(STATE, t.id);
-        html += '<li class="task' + (isInbox ? ' task--inbox' : ' task--active') + '">';
+        var captured = VIEW.capturedTaskId === t.id;
+        html += '<li class="task' + (isInbox ? ' task--inbox' : ' task--active') +
+          (captured ? ' task--captured" id="captured-task" tabindex="-1"' : '"') + '>';
         html += '<div class="t-topline"><div class="t-title">' + esc(t.title) + '</div>' +
           (isInbox ? '<span class="t-tag">por definir</span>' : '') +
           '</div>';
@@ -1071,7 +1083,7 @@
         return '<div class="empty"><p>No hay ninguna sesión abierta.</p>' +
           '<button type="button" class="btn btn--quiet" data-action="go" data-view="hoy">Ir a Hoy</button></div>';
       }
-      return VIEW.name === 'cerrar' ? cerrarHtml(s) : sesionHtml(s);
+      return VIEW.name === 'cerrar' ? cerrarHtml() : sesionHtml(s);
     }
 
     // sesión en curso: acción, anillo con el tiempo transcurrido, pausa y cierre
@@ -1107,33 +1119,16 @@
       return html;
     }
 
-    // cierre de la sesión en tres preguntas encadenadas
-    function cerrarHtml(s) {
-      var task = findTaskUi(s.taskId);
-      var step = VIEW.step || 1;
-
-      var html = '<div class="session"><section class="close-card"><p class="kicker">Cerrar la sesión</p>'; 
-      if (step === 1) {
-        html += '<p class="q">¿Avanzaste?</p><div class="results">' +
-          '<button type="button" class="result" data-action="cl-progress" data-value="yes">Sí, avancé bien</button>' +
-          '<button type="button" class="result" data-action="cl-progress" data-value="some">Avancé algo</button>' +
-          '<button type="button" class="result" data-action="cl-progress" data-value="no">Me trabé</button>' +
-        '</div>';
-      } else if (step === 2) {
-        html += '<p class="q">¿Terminaste la tarea?</p><div class="results">' +
-          '<button type="button" class="result" data-action="cl-finished" data-value="yes">Sí, la terminé</button>' +
-          '<button type="button" class="result" data-action="cl-finished" data-value="no">Todavía no</button>' +
-        '</div>';
-      } else {
-        var def = task ? (task.nextAction || '') : '';
-        html += '<p class="q">¿Cuál es el siguiente paso cuando vuelvas?</p>' +
-          '<label class="field"><span>Siguiente acción</span>' +
-          '<input id="cl-next" type="text" autocomplete="off" value="' + esc(def) + '"></label>' +
-          '<div class="stack"><button type="button" class="btn btn--primary" data-action="cl-confirm">Guardar y cerrar</button></div>';
-      }
-      html += '<div class="stack"><button type="button" class="link" data-action="cl-cancel">Cancelar</button></div>';
-      html += '</section></div>';
-      return html;
+    // cierre rápido: la respuesta guarda el resultado y conserva la acción vigente
+    function cerrarHtml() {
+      return '<div class="session"><section class="close-card">' +
+        '<p class="kicker">Cerrar la sesión</p><p class="q">¿Avanzaste?</p>' +
+        '<div class="results">' +
+          '<button type="button" class="result" data-action="cl-progress" data-value="yes">Sí</button>' +
+          '<button type="button" class="result" data-action="cl-progress" data-value="no">No</button>' +
+        '</div>' +
+        '<div class="stack"><button type="button" class="link" data-action="cl-cancel">Volver a la sesión</button></div>' +
+        '</section></div>';
     }
 
     // Semana: lo que trabajaste, de lunes a hoy; un día vacío es solo un día vacío
@@ -1377,23 +1372,10 @@
         VIEW = { name: VIEW.back || 'hoy' };
         render();
       } else if (action === 'finish') {
-        VIEW = { name: 'cerrar', step: 1, progress: null, finished: null };
+        VIEW = { name: 'cerrar' };
         render();
       } else if (action === 'cl-progress') {
-        VIEW.progress = value;
-        VIEW.step = 2;
-        render();
-      } else if (action === 'cl-finished') {
-        if (value === 'yes') {
-          doCloseSession(VIEW.progress, true, null);
-        } else {
-          VIEW.finished = false;
-          VIEW.step = 3;
-          render();
-        }
-      } else if (action === 'cl-confirm') {
-        var nx = document.getElementById('cl-next');
-        doCloseSession(VIEW.progress, false, nx ? nx.value : '');
+        doCloseSession(value);
       } else if (action === 'cl-cancel') {
         VIEW = { name: 'sesion' };
         render();
