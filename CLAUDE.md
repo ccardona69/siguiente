@@ -4,7 +4,7 @@
 Sistema personal de un solo usuario para empezar, avanzar y retomar tareas. Responde "¿cuál es el siguiente paso que puedo dar ahora?", no "¿qué tengo pendiente?". Proyecto personal: claridad y mantenibilidad antes que generalidad.
 
 ## Principios de producto (no negociables)
-- Solo un texto es obligatorio al capturar; se guarda como título y acción inicial. Nada más puede bloquear la captura.
+- Solo el nombre es obligatorio al capturar; se guarda como título sin inventar una acción. La acción se escribe debajo de la tarea en Bandeja antes de elegirla para hoy. Nada más puede bloquear la captura.
 - La pantalla principal muestra UNA acción y dos botones: "Empezar" y "Ajustar". Si una tarea antigua ya tiene resultado deseado, se muestra "Para:" sin exigirlo a las nuevas.
 - Fecha límite y fecha de trabajo son distintas; reprogramar nunca cambia el vencimiento.
 - El historial no se borra ni se reinicia: las sesiones se conservan aunque la tarea cambie o termine.

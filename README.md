@@ -36,14 +36,14 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 
 ### Recorrido
 
-1. **Capturar.** Escribe en el campo de arriba una tarea concreta (p. ej.,
-   "Física II: resolver tres problemas") y pulsa Enter. Ese único texto se
-   guarda como título y acción inicial. Desde Hoy se abre Bandeja mostrando
-   la nueva tarea; desde Bandeja puedes seguir capturando sin salir de ella.
-2. **Bandeja.** Puedes elegir inmediatamente una tarea nueva para hoy o editar
-   su acción. Las tareas anteriores sin acción muestran "Definir acción" y
-   necesitan completar ese único campo antes de elegirlas. Si la tarea ya está
-   en el plan, aparece "En el plan de hoy".
+1. **Capturar.** Escribe el nombre de la tarea (p. ej., "Física II") y pulsa
+   Enter. Se guarda de inmediato y se abre Bandeja con el cursor en el campo
+   de acción de esa tarea. Puedes dejar ese campo para después con "Ahora no".
+2. **Bandeja.** Escribe lo que harás en la sesión (p. ej., "Resolver problemas
+   múltiplos de 5") y pulsa Enter: la acción queda guardada y "Elegir para hoy"
+   queda enfocado. Al elegirla vuelves a Hoy. Si intentas elegir una tarea
+   antigua sin acción, se abre el mismo campo; al guardarlo se elige para hoy.
+   Para tareas con acción, puedes editarla directamente en Bandeja.
 3. **Hoy.** Muestra una sola acción en grande y dos botones: "Empezar" y
    "Ajustar". Si una tarea anterior tiene resultado, también muestra "Para:".
    Debajo, "Después" con el resto del plan; cada
