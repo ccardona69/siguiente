@@ -1135,11 +1135,22 @@
       URL.revokeObjectURL(url);
     }
 
-    // importar un archivo JSON: valida y reemplaza; si es inválido no toca nada y avisa
+    // importar un archivo JSON: avisa si es más nuevo; el núcleo valida y reemplaza
     function doImport(file) {
       var reader = new FileReader();
       reader.onload = function () {
-        var r = Core.importState(STATE, String(reader.result));
+        var text = String(reader.result);
+        try {
+          var parsed = JSON.parse(text);
+          if (parsed && !Array.isArray(parsed) && typeof parsed.schemaVersion === 'number' && parsed.schemaVersion > Core.SCHEMA_VERSION) {
+            VIEW = { name: 'hoy', menu: true, importNewer: true };
+            render();
+            return;
+          }
+        } catch (e) {
+          // el núcleo devuelve el error de JSON inválido sin modificar el estado
+        }
+        var r = Core.importState(STATE, text);
         if (!r.ok) { VIEW = { name: 'hoy', menu: true, importError: r.error }; render(); return; }
         VIEW = { name: 'hoy' };
         apply(r.state);
@@ -1611,7 +1622,9 @@
     // menú: exportar, importar, borrar todo y una nota de sincronización
     function menuHtml() {
       var html = '<section class="menu-card">';
-      if (VIEW.importError) {
+      if (VIEW.importNewer) {
+        html += '<p class="notice">Este archivo es de una versión más nueva de Siguiente. Actualiza la app antes de importarlo.</p>';
+      } else if (VIEW.importError) {
         html += '<p class="notice">No se pudo importar: ' + esc(VIEW.importError) + '</p>';
       }
       html += '<div class="stack">';
@@ -1686,6 +1699,7 @@
         VIEW.menu = !VIEW.menu;
         VIEW.confirmWipe = false;
         VIEW.importError = null;
+        VIEW.importNewer = false;
         render();
       } else if (action === 'define') {
         VIEW = { name: 'definir', taskId: id, back: 'bandeja', choose: false };

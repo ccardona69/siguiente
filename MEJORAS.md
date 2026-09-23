@@ -62,14 +62,13 @@ regla técnica de cero dependencias. El dueño decide qué pasa a una fase.
 - **Archivos**: `worker.js` (servir el manifest), `public/index.html` (etiqueta).
 - **Esfuerzo**: medio (M).
 
-## 6. Chequeo de integridad en Importar
+## 6. Chequeo de integridad en Importar (implementada en Fase 7)
 
-- **Problema**: Importar valida el esquema (Fase 5), pero un archivo válido puede
-  provenir de un dispositivo más nuevo con `schemaVersion` superior y perderse
-  campos silenciosamente al ser sobreescrito por la versión vieja.
-- **Propuesta**: que Importar avise si el `schemaVersion` del archivo es mayor
-  que el de la app actual ("este archivo es de una versión más nueva; revisa
-  antes de reemplazar") y pida confirmación extra. Solo texto y una guardia; sin
-  migración nueva.
+- **Problema**: Importar rechaza los archivos de una versión futura, pero el
+  aviso genérico no explica que se necesita actualizar la app.
+- **Propuesta**: si el `schemaVersion` del archivo es mayor que el de la app,
+  Importar avisa "Este archivo es de una versión más nueva de Siguiente.
+  Actualiza la app antes de importarlo." y lo rechaza siempre. Solo cambia el
+  aviso de la interfaz; sin confirmación ni migración nueva.
 - **Archivos**: `public/index.html` (aviso en el flujo de Importar).
 - **Esfuerzo**: pequeño (S).
