@@ -76,6 +76,13 @@
     });
     if (typeof s.revision !== 'number') s.revision = 0;
     if (!('savedAt' in s)) s.savedAt = null;
+    s.sessions = s.sessions.map(function (ses) {
+      if (!ses || typeof ses !== 'object') return ses;
+      var patch = {};
+      if (!('pausedAt' in ses)) patch.pausedAt = null;
+      if (typeof ses.pausedMs !== 'number') patch.pausedMs = 0;
+      return Object.assign({}, ses, patch);
+    });
     return s;
   }
 
@@ -290,10 +297,38 @@
       taskId: task.id,
       startedAt: now,
       endedAt: null,
+      pausedAt: null,
+      pausedMs: 0,
       progress: null,
       nextStep: null
     };
     return ok(Object.assign({}, state, { sessions: state.sessions.concat([session]) }));
+  }
+
+  // pausar sesión: congela el cronómetro fijando pausedAt; el tiempo deja de correr
+  function pauseSession(state, data, now) {
+    var session = openSession(state);
+    if (!session) return err('No hay ninguna sesión abierta.');
+    if (session.pausedAt) return ok(state);
+    var paused = Object.assign({}, session, { pausedAt: now });
+    return ok(Object.assign({}, state, {
+      sessions: state.sessions.map(function (s) { return s.id === session.id ? paused : s; })
+    }));
+  }
+
+  // reanudar: el tiempo vuelve a correr y la pausa queda acumulada en pausedMs
+  function resumeSession(state, data, now) {
+    var session = openSession(state);
+    if (!session) return err('No hay ninguna sesión abierta.');
+    if (!session.pausedAt) return ok(state);
+    var extra = toMs(now) - toMs(session.pausedAt);
+    var resumed = Object.assign({}, session, {
+      pausedAt: null,
+      pausedMs: (typeof session.pausedMs === 'number' ? session.pausedMs : 0) + (extra > 0 ? extra : 0)
+    });
+    return ok(Object.assign({}, state, {
+      sessions: state.sessions.map(function (s) { return s.id === session.id ? resumed : s; })
+    }));
   }
 
   // cerrar: sella la sesión y, según el resultado, actualiza la acción o termina la tarea
@@ -312,10 +347,16 @@
       ? data.nextStep.trim()
       : (task ? task.nextAction : null);
 
+    // si estaba en pausa al cerrar, ese tramo también se descuenta
+    var pausedMs = (typeof session.pausedMs === 'number' ? session.pausedMs : 0) +
+      (session.pausedAt ? Math.max(0, toMs(now) - toMs(session.pausedAt)) : 0);
+
     var closed = Object.assign({}, session, {
       endedAt: now,
       progress: progress,
-      nextStep: finished ? null : nextAction
+      nextStep: finished ? null : nextAction,
+      pausedAt: null,
+      pausedMs: pausedMs
     });
     var sessions = state.sessions.map(function (s) {
       return s.id === session.id ? closed : s;
@@ -358,6 +399,70 @@
     return JSON.stringify(state, null, 2);
   }
 
+  // --- validación estricta de esquema (se usa al importar y la replica el Worker) ---
+
+  // marca ISO 8601 con tiempo, como las que produce toISOString
+  var ISO_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})$/;
+  // fecha de plan YYYY-MM-DD
+  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  // cadena o null
+  function optStr(v) { return v === null || typeof v === 'string'; }
+  // entero mayor o igual a cero
+  function nonNegInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v && v >= 0; }
+  // marca ISO o null
+  function isoOrNull(v) { return v === null || (typeof v === 'string' && ISO_RE.test(v)); }
+
+  // valida en estricto un estado ya migrado: campos, tipos y valores de cada colección
+  function validateState(value) {
+    var SHAPE = 'El archivo no tiene la estructura esperada.';
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return err(SHAPE);
+    if (value.schemaVersion !== SCHEMA_VERSION) return err('La versión de esquema no es compatible.');
+    if (typeof value.revision !== 'number' || !isFinite(value.revision)) return err(SHAPE);
+    if (!(value.savedAt === null || typeof value.savedAt === 'string')) return err(SHAPE);
+    var cols = ['tasks', 'plans', 'planItems', 'sessions'];
+    for (var c = 0; c < cols.length; c++) {
+      if (!Array.isArray(value[cols[c]])) return err(SHAPE);
+    }
+    var i, t, p, it, s;
+    for (i = 0; i < value.tasks.length; i++) {
+      t = value.tasks[i];
+      if (!t || typeof t !== 'object') return err('Hay una tarea con formato incorrecto.');
+      if (!filled(t.id) || typeof t.title !== 'string') return err('Hay una tarea con formato incorrecto.');
+      if (t.status !== 'inbox' && t.status !== 'active' && t.status !== 'done') return err('Hay una tarea con formato incorrecto.');
+      if (!optStr(t.outcome) || !optStr(t.nextAction) || !optStr(t.dueDate)) return err('Hay una tarea con formato incorrecto.');
+      if (!isoOrNull(t.createdAt) || !isoOrNull(t.updatedAt)) return err('Hay una tarea con formato incorrecto.');
+    }
+    for (i = 0; i < value.plans.length; i++) {
+      p = value.plans[i];
+      if (!p || typeof p !== 'object') return err('Hay un plan con formato incorrecto.');
+      if (!filled(p.id) || typeof p.date !== 'string' || !DATE_RE.test(p.date)) return err('Hay un plan con formato incorrecto.');
+      if (!optStr(p.note) || !isoOrNull(p.createdAt)) return err('Hay un plan con formato incorrecto.');
+    }
+    for (i = 0; i < value.planItems.length; i++) {
+      it = value.planItems[i];
+      if (!it || typeof it !== 'object') return err('Hay un elemento de plan con formato incorrecto.');
+      if (!filled(it.id) || !filled(it.planId) || !filled(it.taskId) || !nonNegInt(it.order)) {
+        return err('Hay un elemento de plan con formato incorrecto.');
+      }
+    }
+    for (i = 0; i < value.sessions.length; i++) {
+      s = value.sessions[i];
+      if (!s || typeof s !== 'object') return err('Hay una sesión con formato incorrecto.');
+      if (!filled(s.id) || !filled(s.taskId)) return err('Hay una sesión con formato incorrecto.');
+      if (typeof s.startedAt !== 'string' || !ISO_RE.test(s.startedAt)) return err('Hay una sesión con formato incorrecto.');
+      if (!isoOrNull(s.endedAt) || !isoOrNull(s.pausedAt)) return err('Hay una sesión con formato incorrecto.');
+      if (s.progress !== null && s.progress !== 'yes' && s.progress !== 'some' && s.progress !== 'no') {
+        return err('Hay una sesión con formato incorrecto.');
+      }
+      if (!optStr(s.nextStep)) return err('Hay una sesión con formato incorrecto.');
+      if (typeof s.pausedMs !== 'number' || !isFinite(s.pausedMs) || s.pausedMs < 0) {
+        return err('Hay una sesión con formato incorrecto.');
+      }
+    }
+    return ok(value);
+  }
+
   // importa un JSON: valida y reemplaza; si algo falla, el estado anterior queda intacto
   function importState(state, json) {
     var parsed;
@@ -369,7 +474,7 @@
     if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
       return err('El archivo no tiene la estructura esperada.');
     }
-    if (parsed.schemaVersion !== SCHEMA_VERSION) {
+    if (typeof parsed.schemaVersion !== 'number' || parsed.schemaVersion !== SCHEMA_VERSION) {
       return err('La versión de esquema no es compatible.');
     }
     var collections = ['tasks', 'plans', 'planItems', 'sessions'];
@@ -378,7 +483,10 @@
         return err('El archivo no tiene la estructura esperada.');
       }
     }
-    return ok(migrate(parsed));
+    var migrated = migrate(parsed);
+    var v = validateState(migrated);
+    if (!v.ok) return err(v.error);
+    return ok(migrated);
   }
 
   // consulta: contenido de la bandeja (tareas sin terminar), más antiguas primero
@@ -418,12 +526,16 @@
     return list.length ? list[0] : null;
   }
 
-  // consulta: duración de una sesión en milisegundos (usa endedAt si existe, si no el reloj)
+  // consulta: duración de una sesión en milisegundos, siempre desde marcas de tiempo
+  // fin = endedAt (cerrada), pausedAt (en pausa, el tiempo queda congelado) o el reloj; se descuenta lo pausado
   function sessionDuration(session, now) {
     if (!session || !session.startedAt) return 0;
     var start = toMs(session.startedAt);
-    var end = session.endedAt ? toMs(session.endedAt) : toMs(now);
-    var ms = end - start;
+    var end = session.endedAt ? toMs(session.endedAt)
+      : session.pausedAt ? toMs(session.pausedAt)
+      : toMs(now);
+    var paused = typeof session.pausedMs === 'number' ? session.pausedMs : 0;
+    var ms = end - start - paused;
     return ms > 0 ? ms : 0;
   }
 
@@ -493,9 +605,12 @@
     pauseTask: pauseTask,
     rescheduleTask: rescheduleTask,
     startSession: startSession,
+    pauseSession: pauseSession,
+    resumeSession: resumeSession,
     closeSession: closeSession,
     markTaskDone: markTaskDone,
     exportState: exportState,
+    validateState: validateState,
     importState: importState,
     inbox: inbox,
     todayPlan: todayPlan,

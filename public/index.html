@@ -355,7 +355,8 @@
     .ring-sweep { stroke: var(--accent); }
     .ring-label strong { font-size: 44px; font-weight: 600; }
     .ring-label span { color: var(--text-dim); }
-    .session-end { margin-top: auto; padding-bottom: 10px; }
+    .session-end { margin-top: auto; padding-bottom: 86px; }
+    .session-end .btn + .btn { margin-top: 9px; }
     .close-card { margin-top: 16px; padding: 19px; border: 1px solid var(--line); border-radius: 24px; background: var(--surface); }
     .close-card .kicker { color: var(--text-dim); }
     .q { font-size: 21px; font-weight: 650; letter-spacing: -.025em; }
@@ -419,6 +420,25 @@
       .saveind { display: none; }
       .now-actions { grid-template-columns: 1fr; }
       .now-actions .btn { width: 100%; }
+    }
+
+    /* Fase 5: deshacer breve, estado de pausa y micro-tacto */
+    .undobar { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+    .undobar .link { flex: none; }
+    .ring-wrap.is-paused .ring-sweep { stroke: rgba(129, 140, 248, .38); }
+    .ring-wrap.is-paused .ring-label strong { color: var(--text-dim); }
+    .ring-sweep { transition: stroke-dashoffset 1s linear; }
+
+    .btn, .tab, .iconbtn, .link, .result, .filelabel {
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
+    }
+    @media (prefers-reduced-motion: no-preference) {
+      .btn, .tab, .iconbtn, .result, .link, .rows > li, .day {
+        transition: transform 110ms ease-out, background-color 150ms ease-out, color 150ms ease-out;
+      }
+      .btn:active, .btn--primary:active, .result:active { transform: scale(.97); }
+      .tab:active, .iconbtn:active { transform: scale(.93); }
     }
   </style>
 </head>
@@ -611,10 +631,19 @@
     var SAVE = 'saved';                   // 'saved' | 'saving' | 'error'
     var SYNC = 'off';                     // 'off' | 'ok' | 'localonly'
     var elapsedTimer = null;              // solo repinta el tiempo transcurrido
+    var UNDO = null;                      // { state, label } del deshacer breve
+    var undoTimer = null;                 // temporizador del aviso de deshacer
     var REDUCE = false;
     try { REDUCE = window.matchMedia('(prefers-reduced-motion: reduce)').matches; } catch (e) {}
 
     var adapter = makeAdapter();
+
+    // calcula una fecha YYYY-MM-DD desplazada por días
+    function localPlus(offset) {
+      var d = new Date();
+      d.setDate(d.getDate() + offset);
+      return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+    }
 
     // ---------- utilidades ----------
     // escapa el texto de la persona antes de insertarlo en HTML
@@ -644,12 +673,13 @@
 
     // texto del indicador de guardado, honesto sobre dónde quedaron los datos
     function saveText() {
+      var stamp = STATE.savedAt ? ' ' + fmtClock(STATE.savedAt) : '';
       if (SYNC === 'off') {
-        return SAVE === 'saving' ? 'Guardando…' : SAVE === 'error' ? 'No se pudo guardar' : 'Guardado';
+        return SAVE === 'saving' ? 'Guardando…' : SAVE === 'error' ? 'No se pudo guardar' : ('Guardado' + stamp);
       }
       if (SAVE === 'saving') return 'Sincronizando…';
       if (SAVE === 'error') return 'No se pudo guardar';
-      return SYNC === 'localonly' ? 'Guardado solo en este equipo' : 'Sincronizado';
+      return SYNC === 'localonly' ? 'Guardado solo en este equipo' : ('Sincronizado' + stamp);
     }
 
     // busca una tarea por id para la interfaz
@@ -681,6 +711,7 @@
     // ---------- guardado ----------
     // adopta un estado nuevo, repinta y guarda solo si cambió
     function apply(next) {
+      clearUndo();
       if (next === STATE) { render(); return; }
       STATE = Core.stampSave(next, now());
       SAVE = 'saving';
@@ -698,6 +729,39 @@
     function refreshSaveIndicator() {
       var el = document.getElementById('saveind');
       if (el) el.textContent = saveText();
+    }
+
+    // ---------- deshacer breve: una ventana de 10 s tras acciones destructivas ----------
+    function setUndo(prevState, label) {
+      UNDO = { state: prevState, label: label };
+      if (undoTimer) clearTimeout(undoTimer);
+      undoTimer = setTimeout(function () {
+        UNDO = null;
+        undoTimer = null;
+        var el = document.getElementById('undobar');
+        if (el && el.parentNode) el.parentNode.removeChild(el);
+      }, 10000);
+      render();
+    }
+
+    function clearUndo() {
+      UNDO = null;
+      if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+    }
+
+    function doUndo() {
+      if (!UNDO) return;
+      var prev = UNDO.state;
+      UNDO = null;
+      if (undoTimer) { clearTimeout(undoTimer); undoTimer = null; }
+      VIEW = { name: 'hoy' };
+      apply(prev);
+    }
+
+    function undoBarHtml() {
+      if (!UNDO) return '';
+      return '<div class="notice undobar" id="undobar"><span>' + esc(UNDO.label) + '</span>' +
+        '<button type="button" class="link" data-action="undo">Deshacer</button></div>';
     }
 
     // ---------- acciones de interfaz ----------
@@ -735,10 +799,12 @@
 
     // marcar una tarea como terminada directamente y volver a Hoy
     function doMarkDone(taskId) {
+      var prev = STATE;
       var r = Core.markTaskDone(STATE, { taskId: taskId }, now());
       if (r.ok) {
         VIEW = { name: 'hoy' };
         apply(r.state);
+        setUndo(prev, 'Tarea terminada.');
       }
     }
 
@@ -771,6 +837,18 @@
       if (r.ok) { VIEW = { name: 'sesion' }; apply(r.state); }
     }
 
+    // pausar la sesión abierta: el tiempo se congela hasta reanudar
+    function doPauseSession() {
+      var r = Core.pauseSession(STATE, {}, now());
+      if (r.ok) apply(r.state);
+    }
+
+    // reanudar la sesión en pausa
+    function doResumeSession() {
+      var r = Core.resumeSession(STATE, {}, now());
+      if (r.ok) apply(r.state);
+    }
+
     // guardar la definición (usada por Definir, por Elegir sin acción y por Ajustar)
     function onSaveDefine() {
       var o = document.getElementById('d-outcome');
@@ -796,11 +874,13 @@
 
     // cerrar la sesión con las respuestas del cierre
     function doCloseSession(progress, finished, nextStep) {
+      var prev = STATE;
       var r = Core.closeSession(STATE, { progress: progress, finished: finished, nextStep: nextStep }, now());
       if (!r.ok) return;
       stopElapsed();
       VIEW = { name: 'hoy' };
       apply(r.state);
+      if (finished) setUndo(prev, 'Tarea terminada.');
     }
 
     // exportar el estado como archivo JSON
@@ -835,9 +915,46 @@
 
     // borrar todo, tras confirmación
     function doDeleteAll() {
+      var prev = STATE;
       stopElapsed();
       VIEW = { name: 'hoy' };
       apply(Core.emptyState());
+      setUndo(prev, 'Se borraron todas las tareas y sesiones.');
+    }
+
+    // datos de ejemplo: se construyen con los mismos casos de uso
+    function doLoadSample() {
+      function at(dayOffset, h, m) {
+        var d = new Date();
+        d.setDate(d.getDate() + dayOffset);
+        d.setHours(h, m, 0, 0);
+        return d.toISOString();
+      }
+      var s = STATE;
+      s = Core.captureTask(s, { title: 'Enviar la factura al cliente' }, at(-1, 9, 2)).state;
+      var t1 = s.tasks[s.tasks.length - 1].id;
+      s = Core.defineTask(s, { taskId: t1, outcome: 'Factura enviada y cobrada', nextAction: 'Adjuntar el PDF y escribir el correo' }, at(-1, 9, 3)).state;
+      s = Core.chooseForToday(s, { taskId: t1, date: localPlus(-1) }, at(-1, 9, 4)).state;
+      s = Core.startSession(s, { taskId: t1 }, at(-1, 9, 5)).state;
+      s = Core.closeSession(s, { progress: 'yes', finished: true }, at(-1, 9, 40)).state;
+
+      s = Core.captureTask(s, { title: 'Leer el capítulo 3 de historia' }, at(0, 8, 15)).state;
+      var t2 = s.tasks[s.tasks.length - 1].id;
+      s = Core.defineTask(s, { taskId: t2, outcome: 'Capítulo 3 leído con apuntes', nextAction: 'Leer las páginas 40 a 52' }, at(0, 8, 16)).state;
+      s = Core.chooseForToday(s, { taskId: t2, date: localDate() }, at(0, 8, 17)).state;
+      s = Core.startSession(s, { taskId: t2 }, at(0, 8, 30)).state;
+      s = Core.pauseSession(s, {}, at(0, 8, 40)).state;
+      s = Core.resumeSession(s, {}, at(0, 8, 50)).state;
+      s = Core.closeSession(s, { progress: 'some', finished: false, nextStep: 'Leer las páginas 53 a 60' }, at(0, 9, 0)).state;
+
+      s = Core.captureTask(s, { title: 'Ordenar el escritorio' }, at(0, 8, 20)).state;
+      var t3 = s.tasks[s.tasks.length - 1].id;
+      s = Core.defineTask(s, { taskId: t3, outcome: 'Escritorio despejado', nextAction: 'Vaciar el cajón de arriba' }, at(0, 8, 21)).state;
+      s = Core.chooseForToday(s, { taskId: t3, date: localDate() }, at(0, 8, 22)).state;
+
+      s = Core.captureTask(s, { title: 'Ideas para el regalo de mamá' }, at(0, 8, 25)).state;
+      VIEW = { name: 'hoy' };
+      apply(s);
     }
 
     // ---------- iconos: un único trazo consistente para toda la navegación ----------
@@ -860,6 +977,7 @@
       var full = (VIEW.name === 'sesion' || VIEW.name === 'cerrar') && !VIEW.menu;
 
       var body = VIEW.menu ? menuHtml() : viewHtml();
+      if (!full && !VIEW.menu) body = undoBarHtml() + body;
       var chrome = full ? '' : (appbarHtml() + captureSlot());
       app.innerHTML = chrome + '<div class="view' + (full ? ' view--full' : '') + '">' + body + '</div>' + tabbarHtml();
       wire();
@@ -929,7 +1047,10 @@
       var s = Core.openSession(STATE);
       if (!s || VIEW.name === 'sesion' || VIEW.name === 'cerrar') return '';
       return '<button type="button" class="notice as-button" data-action="go" data-view="sesion">' +
-        'Tienes una sesión abierta desde las ' + esc(fmtClock(s.startedAt)) + '. Volver a la sesión.</button>';
+        (s.pausedAt
+          ? 'Tienes una sesión en pausa desde las ' + esc(fmtClock(s.pausedAt)) + '. Volver a la sesión.'
+          : 'Tienes una sesión abierta desde las ' + esc(fmtClock(s.startedAt)) + '. Volver a la sesión.') +
+        '</button>';
     }
 
     // Hoy: la primera acción del plan como elemento principal, y debajo el resto
@@ -1095,10 +1216,11 @@
       return VIEW.name === 'cerrar' ? cerrarHtml(s) : sesionHtml(s);
     }
 
-    // sesión en curso: acción, anillo con el tiempo transcurrido y un solo botón
+    // sesión en curso: acción, anillo con el tiempo transcurrido, pausa y cierre
     function sesionHtml(s) {
       var task = findTaskUi(s.taskId);
       var ms = Core.sessionDuration(s, now());
+      var paused = !!s.pausedAt;
       var html = '<div class="session">';
       if (VIEW.reentry) {
         html += '<p class="notice">Sesión abierta desde el ' + esc(fmtStamp(s.startedAt)) + '.</p>';
@@ -1108,15 +1230,21 @@
       if (task && task.outcome) {
         html += '<p class="for-outcome">Para: ' + esc(task.outcome) + '</p>';
       }
-      html += '</div><div class="ring-stage"><div class="ring-wrap">' +
+      html += '</div><div class="ring-stage"><div class="ring-wrap' + (paused ? ' is-paused' : '') + '">' +
         '<svg class="ring" viewBox="0 0 100 100" aria-hidden="true">' +
           '<circle class="ring-track" cx="50" cy="50" r="46"></circle>' +
           '<circle class="ring-sweep" cx="50" cy="50" r="46" style="stroke-dashoffset:' + ringOffset(ms) + '"></circle>' +
         '</svg>' +
         '<div class="ring-label"><strong id="elapsed">' + esc(fmtDur(ms)) + '</strong>' +
-          '<span>desde las ' + esc(fmtClock(s.startedAt)) + '</span></div>' +
+          (paused
+            ? '<span>en pausa desde las ' + esc(fmtClock(s.pausedAt)) + '</span>'
+            : '<span>desde las ' + esc(fmtClock(s.startedAt)) + '</span>') +
+        '</div>' +
       '</div></div>';
-      html += '<div class="session-end"><button type="button" class="btn btn--primary" data-action="finish">Listo</button></div>';
+      html += '<div class="session-end">' +
+        '<button type="button" class="btn btn--primary" data-action="finish">Listo</button>' +
+        '<button type="button" class="btn btn--quiet" data-action="session-pause-toggle">' + (paused ? 'Reanudar' : 'Pausar') + '</button>' +
+      '</div>';
       html += '</div>';
       return html;
     }
@@ -1256,6 +1384,12 @@
         html += '<button type="button" class="link" data-action="wipe-no">Cancelar</button>';
       }
       html += '</div>';
+      if (STATE.tasks.length === 0 && STATE.sessions.length === 0) {
+        html += '<p class="section-label">Datos de ejemplo</p>';
+        html += '<p class="notice">Carga unas tareas y sesiones de muestra para ver la app en marcha. ' +
+          'Puedes borrarlas después con "Borrar todo".</p>';
+        html += '<div class="stack"><button type="button" class="btn btn--quiet" data-action="sample">Cargar datos de ejemplo</button></div>';
+      }
       if (SYNC !== 'off') {
         var hasToken = !!syncToken();
         html += '<p class="section-label">Sincronización</p>';
@@ -1387,6 +1521,15 @@
         } else {
           render();
         }
+      } else if (action === 'session-pause-toggle') {
+        var s = Core.openSession(STATE);
+        if (s) {
+          if (s.pausedAt) doResumeSession(); else doPauseSession();
+        }
+      } else if (action === 'undo') {
+        doUndo();
+      } else if (action === 'sample') {
+        doLoadSample();
       } else if (action === 'clear-token') {
         setSyncToken('');
         render();
@@ -1403,6 +1546,7 @@
       var s = Core.openSession(STATE);
       var el = document.getElementById('elapsed');
       if (!s || !el) { stopElapsed(); return; }
+      if (s.pausedAt) return;
       var ms = Core.sessionDuration(s, now());
       el.textContent = fmtDur(ms);
       if (!REDUCE) {
@@ -1424,6 +1568,35 @@
 
     function init() {
       document.getElementById('app').addEventListener('click', onClick);
+      window.addEventListener('keydown', function (e) {
+        if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) {
+          if (e.key === 'Escape') e.target.blur();
+          return;
+        }
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        var k = e.key;
+        if (k === '/') {
+          e.preventDefault();
+          var c = document.getElementById('capture');
+          if (c) c.focus();
+        } else if (k === 'Escape') {
+          if (VIEW.name !== 'hoy' || VIEW.menu) {
+            VIEW = { name: 'hoy' };
+            render();
+          }
+        } else if (k === ' ' && VIEW.name === 'hoy') {
+          var plan = Core.todayPlan(STATE, localDate()).filter(function (it) { return it.task; });
+          if (plan.length) {
+            e.preventDefault();
+            doStart(plan[0].task.id);
+          }
+        } else if (k === 'p' && VIEW.name === 'sesion') {
+          var s = Core.openSession(STATE);
+          if (s) {
+            if (s.pausedAt) doResumeSession(); else doPauseSession();
+          }
+        }
+      });
       adapter.load().then(function (loaded) {
         STATE = usableState(loaded);
         SAVE = 'saved';

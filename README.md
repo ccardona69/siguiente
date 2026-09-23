@@ -17,6 +17,10 @@ puedo dar ahora?"**.
 - **Fase 4** — **pausar** una tarea (la aparta de todos los planes sin terminarla
   ni tocar su historial; se retoma con "Elegir para hoy") y **reprogramar** (mover
   la tarea al plan de otro día: cambia la fecha de trabajo, nunca el vencimiento).
+- **Fase 5** — **pausa de sesión** (congelar el tiempo ante interrupciones cotidianas
+  sin cerrarla ni falsear marcas), **deshacer breve** (ventana neutra de 10 s tras
+  borrar o terminar por error), **validación estricta de esquema**, hora en el indicador
+  de guardado, atajos de teclado y datos de ejemplo en Menú.
 
 ## Uso
 
@@ -153,8 +157,8 @@ Cada caso de uso recibe `(estado, datos, now)` y devuelve `{ ok: true, state }` 
 `{ ok: false, error }` sin mutar el estado recibido ni lanzar excepciones.
 
 - Casos de uso: `captureTask`, `defineTask`, `chooseForToday`, `moveToFirst`,
-  `removeFromToday`, `pauseTask`, `rescheduleTask`, `startSession`, `closeSession`,
-  `markTaskDone`, `importState`.
+  `removeFromToday`, `pauseTask`, `rescheduleTask`, `startSession`, `pauseSession`,
+  `resumeSession`, `closeSession`, `markTaskDone`, `validateState`, `importState`.
 - Sin envoltura: `emptyState`, `migrate`, `stampSave`, `exportState`, `uid`.
 - Consultas: `inbox`, `todayPlan(date)`, `openSession`, `firstActionOf(date)`,
   `sessionDuration(session, now)`, `taskById(id)`, `closedSessions`,
@@ -166,13 +170,6 @@ calculadas: el núcleo nunca decide qué día es "hoy" ni dónde empieza la sema
 
 ## Fuera de alcance (a revisar en una fase futura)
 
-Revisión semanal asistida, atajos de teclado, deshacer breve tras "Borrar todo",
-datos de ejemplo, notificaciones, gamificación y rachas. Un horario de clases
+Revisión semanal asistida, notificaciones, gamificación y rachas. Un horario de clases
 real (aulas, horas) para la vista Semana: sigue siendo un registro de lo
 trabajado, no un calendario.
-
-Ideas surgidas al construir; **ninguna se implementa ahora**, el uso decide:
-
-- Un "deshacer" breve tras "Borrar todo" y tras terminar una tarea.
-- Validación de esquema más estricta al importar y en el Worker.
-- Indicador de guardado con marca de tiempo ("Guardado 14:03").

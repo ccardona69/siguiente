@@ -441,6 +441,56 @@
     assertEqual(Core.sessionDuration(Core.openSession(d.state), clock()), 90 * 60 * 1000);
   });
 
+  test('pauseSession congela la duración y fija pausedAt', function () {
+    var clock = fakeClock('2026-01-01T09:00:00.000Z');
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var r = Core.pauseSession(d.state, {}, clock());
+    assert(r.ok === true);
+    var sess = Core.openSession(r.state);
+    assertEqual(sess.pausedAt, clock());
+    clock.advanceHours(2);
+    assertEqual(Core.sessionDuration(sess, clock()), 3600 * 1000);
+  });
+
+  test('resumeSession acumula pausedMs y reanuda el avance', function () {
+    var clock = fakeClock('2026-01-01T09:00:00.000Z');
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.pauseSession(d.state, {}, clock()).state;
+    clock.advanceHours(2);
+    var r = Core.resumeSession(s, {}, clock());
+    assert(r.ok === true);
+    var sess = Core.openSession(r.state);
+    assertEqual(sess.pausedAt, null);
+    assertEqual(sess.pausedMs, 2 * 3600 * 1000);
+    clock.advanceHours(0.5);
+    assertEqual(Core.sessionDuration(sess, clock()), 1.5 * 3600 * 1000);
+  });
+
+  test('closeSession con sesión en pausa acumula el tramo de pausa final', function () {
+    var clock = fakeClock('2026-01-01T09:00:00.000Z');
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.pauseSession(d.state, {}, clock()).state;
+    clock.advanceHours(3);
+    var r = Core.closeSession(s, { progress: 'yes', finished: false, nextStep: '' }, clock());
+    assert(r.ok === true);
+    var closed = r.state.sessions[0];
+    assertEqual(closed.pausedAt, null);
+    assertEqual(closed.pausedMs, 3 * 3600 * 1000);
+    assertEqual(Core.sessionDuration(closed, clock()), 1 * 3600 * 1000);
+  });
+
+  test('pauseSession y resumeSession sin sesión abierta fallan con error claro', function () {
+    var r1 = Core.pauseSession(Core.emptyState(), {}, ISO);
+    assert(r1.ok === false);
+    assertEqual(r1.error, 'No hay ninguna sesión abierta.');
+    var r2 = Core.resumeSession(Core.emptyState(), {}, ISO);
+    assert(r2.ok === false);
+    assertEqual(r2.error, 'No hay ninguna sesión abierta.');
+  });
+
   test('closeSession sin nextStep conserva la siguiente acción actual', function () {
     var clock = fakeClock(ISO);
     var d = seed(clock, { session: true, nextAction: 'Paso uno' });
@@ -586,6 +636,21 @@
     assert(Core.importState(Core.emptyState(), bad1).ok === false);
     var bad2 = JSON.stringify({ schemaVersion: 1, tasks: [], plans: [], planItems: [] });
     assert(Core.importState(Core.emptyState(), bad2).ok === false, 'falta sessions');
+  });
+
+  test('importState y validateState rechazan estados con tareas o sesiones corruptas', function () {
+    var base = Core.emptyState();
+    var bad1 = JSON.parse(JSON.stringify(base));
+    bad1.tasks.push({ id: '', title: 'Sin id', status: 'inbox', outcome: null, nextAction: null, dueDate: null, createdAt: ISO, updatedAt: ISO });
+    var r1 = Core.importState(base, JSON.stringify(bad1));
+    assert(r1.ok === false);
+    assert(/incorrecto/i.test(r1.error));
+
+    var bad2 = JSON.parse(JSON.stringify(base));
+    bad2.sessions.push({ id: 's1', taskId: 't1', startedAt: 'invalido', endedAt: null, pausedAt: null, pausedMs: 0, progress: null, nextStep: null });
+    var r2 = Core.importState(base, JSON.stringify(bad2));
+    assert(r2.ok === false);
+    assert(/incorrecto/i.test(r2.error));
   });
 
   test('migrate es idempotente y no rompe un estado vacío', function () {
@@ -753,6 +818,8 @@
     Core.removeFromToday(d.state, { date: d.date, taskId: d.id });
     Core.pauseTask(d.state, { taskId: d.id });
     Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: '2026-01-05' }, clock());
+    Core.pauseSession(d.state, {}, clock());
+    Core.resumeSession(d.state, {}, clock());
     Core.closeSession(d.state, { progress: 'yes', finished: true }, clock());
     Core.markTaskDone(d.state, { taskId: d.id }, clock());
     assertEqual(JSON.stringify(d.state), snap, 'el estado sembrado no cambió');
