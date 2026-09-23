@@ -19,7 +19,7 @@ regla técnica de cero dependencias. El dueño decide qué pasa a una fase.
   (render), `public/tests.js` (3–4 pruebas).
 - **Esfuerzo**: pequeño (S).
 
-## 2. Buscador en el registro de Progreso
+## 2. Buscador en el registro de Progreso (implementada en Fase 7)
 
 - **Problema**: el registro nunca se borra; con meses de uso, encontrar una
   sesión antigua exige desplazarse de largo.

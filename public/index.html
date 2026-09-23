@@ -634,6 +634,22 @@
       border-radius: 18px;
       background: rgba(21, 25, 34, .78);
     }
+    /* Filtros del registro: discretos y sin alterar las cifras globales */
+    .log-controls { display: grid; gap: 10px; margin: 12px 0 16px; }
+    .log-search {
+      width: 100%; min-height: 44px; padding: 10px 13px;
+      border: 1px solid var(--line); border-radius: 13px;
+      background: var(--surface); color: var(--text); font: inherit; font-size: 14px;
+    }
+    .log-search::placeholder { color: var(--text-faint); }
+    .log-month { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+    .log-month span { color: var(--text-dim); font-size: 14px; text-align: center; }
+    .log-month-btn {
+      flex: none; width: 44px; height: 44px;
+      border: 1px solid var(--line); border-radius: 13px;
+      background: var(--surface); color: var(--text); font: 22px/1 var(--font); cursor: pointer;
+    }
+    .log-empty { margin: 18px 0; color: var(--text-dim); font-size: 14px; }
     .menu-card { padding-top: 5px; }
     .menu-card > .stack { gap: 11px; }
     .tabbar {
@@ -665,7 +681,7 @@
       #app::before, .appbar, .capture, .tabbar, .view > :not(.log) { display: none !important; }
       .view { padding: 0; }
       .log { display: block; margin: 0; padding: 0; }
-      .log::before { display: block; margin-bottom: 12mm; content: "Registro"; font-size: 18pt; font-weight: 600; }
+      .log::before { display: block; margin-bottom: 12mm; content: "Registro — " attr(data-month); font-size: 18pt; font-weight: 600; }
       .log > li { break-inside: avoid; margin: 0; padding: 5mm 0; border: 0; border-bottom: 1px solid #ccc; border-radius: 0; background: none; color: #111; }
       .log > li::before, .log-outcome .dot { display: none; }
       .log-head { display: grid; gap: 1mm; color: #111; font-size: 10pt; }
@@ -889,6 +905,11 @@
       return String(value == null ? '' : value).replace(/[&<>"']/g, function (c) {
         return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
       });
+    }
+
+    // texto de búsqueda comparable sin diferencias de mayúsculas ni acentos
+    function foldSearch(text) {
+      return String(text || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     }
 
     // duración legible larga a partir de milisegundos
@@ -1586,7 +1607,7 @@
       return html;
     }
 
-    // Progreso: cifras neutras y el registro completo, que nunca se borra
+    // Progreso: cifras globales y registro acotado por mes y búsqueda
     function progresoHtml() {
       var stats = Core.sessionStats(STATE);
       var log = Core.closedSessions(STATE);
@@ -1603,8 +1624,26 @@
         return html;
       }
 
-      html += '<p class="section-label">Registro</p><ul class="log">';
-      log.forEach(function (x) {
+      VIEW.logMonth = VIEW.logMonth || localDate().slice(0, 7);
+      var month = VIEW.logMonth;
+      var monthLabel = new Intl.DateTimeFormat('es', { month: 'long', year: 'numeric' })
+        .format(parseLocalDate(month + '-01'));
+      var query = foldSearch((VIEW.logQuery || '').trim());
+      var filtered = log.filter(function (x) {
+        var started = new Date(x.startedAt);
+        var sessionMonth = started.getFullYear() + '-' + pad(started.getMonth() + 1);
+        if (sessionMonth !== month) return false;
+        var t = Core.taskById(STATE, x.taskId);
+        return foldSearch([t ? t.title : '', outcomeWord(x), x.nextStep || ''].join(' ')).includes(query);
+      });
+      html += '<p class="section-label">Registro</p>' +
+        '<div class="log-controls"><input id="log-search" class="log-search" type="search" autocomplete="off" ' +
+          'placeholder="Buscar en el registro" aria-label="Buscar en el registro" value="' + esc(VIEW.logQuery || '') + '">' +
+          '<div class="log-month"><button type="button" class="log-month-btn" data-action="log-prev" aria-label="Mes anterior">‹</button>' +
+            '<span aria-live="polite">' + esc(monthLabel) + '</span>' +
+            '<button type="button" class="log-month-btn" data-action="log-next" aria-label="Mes siguiente">›</button></div></div>' +
+        '<ul class="log" data-month="' + esc(monthLabel) + '">';
+      filtered.forEach(function (x) {
         var t = Core.taskById(STATE, x.taskId);
         html += '<li><div class="log-head">' +
           '<span>' + esc(fmtStamp(x.startedAt)) + '</span>' +
@@ -1616,6 +1655,7 @@
         '</li>';
       });
       html += '</ul>';
+      if (!filtered.length) html += '<p class="log-empty">No hay sesiones que coincidan en este mes.</p>';
       return html;
     }
 
@@ -1675,6 +1715,17 @@
           doCapture(value);
         });
       }
+      var search = document.getElementById('log-search');
+      if (search) {
+        search.addEventListener('input', function () {
+          var start = search.selectionStart;
+          var end = search.selectionEnd;
+          VIEW.logQuery = search.value;
+          render();
+          var next = document.getElementById('log-search');
+          if (next) { next.focus(); next.setSelectionRange(start, end); }
+        });
+      }
       var imp = document.getElementById('importfile');
       if (imp) {
         imp.addEventListener('change', function () {
@@ -1694,6 +1745,11 @@
 
       if (action === 'go') {
         VIEW = { name: view };
+        render();
+      } else if (action === 'log-prev' || action === 'log-next') {
+        var month = parseLocalDate(VIEW.logMonth + '-01');
+        month.setMonth(month.getMonth() + (action === 'log-prev' ? -1 : 1));
+        VIEW.logMonth = month.getFullYear() + '-' + pad(month.getMonth() + 1);
         render();
       } else if (action === 'toggle-menu') {
         VIEW.menu = !VIEW.menu;
