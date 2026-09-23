@@ -655,6 +655,29 @@
     @media (prefers-reduced-motion: reduce) {
       .ring-sweep { transition: none; }
     }
+
+    /* Impresión: solo el registro de Progreso, sin controles ni decoración */
+    @media print {
+      @page { margin: 18mm; }
+      :root { color-scheme: light; }
+      body { background: #fff !important; color: #111; }
+      #app { max-width: none; margin: 0; padding: 0; overflow: visible; border: 0; box-shadow: none; }
+      #app::before, .appbar, .capture, .tabbar, .view > :not(.log) { display: none !important; }
+      .view { padding: 0; }
+      .log { display: block; margin: 0; padding: 0; }
+      .log::before { display: block; margin-bottom: 12mm; content: "Registro"; font-size: 18pt; font-weight: 600; }
+      .log > li { break-inside: avoid; margin: 0; padding: 5mm 0; border: 0; border-bottom: 1px solid #ccc; border-radius: 0; background: none; color: #111; }
+      .log > li::before, .log-outcome .dot { display: none; }
+      .log-head { display: grid; gap: 1mm; color: #111; font-size: 10pt; }
+      .log-head .l-task { order: 0; flex-basis: auto; color: #111; font-size: 11pt; }
+      .log-head .l-dur { margin: 0; }
+      .log-head > span:first-child::before { content: "Fecha: "; }
+      .log-head .l-task::before { content: "Tarea: "; }
+      .log-head .l-dur::before { content: "Duración: "; }
+      .log-outcome { margin: 1mm 0 0; color: #111; font-size: 10pt; }
+      .log-outcome::before { content: "Resultado: "; }
+      .log-step { margin: 1mm 0 0; color: #111; font-size: 10pt; }
+    }
   </style>
 </head>
 <body>

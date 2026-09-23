@@ -1,9 +1,9 @@
-# Mejoras propuestas (sin implementar)
+# Mejoras propuestas
 
-Lista aparte según las reglas del proyecto: nada de esto está implementado.
-Cada propuesta respeta los principios de producto (cero presión, cero
-notificaciones, cero gamificación, cifras neutras) y la regla técnica de cero
-dependencias. El dueño decide qué pasa a una fase.
+Lista aparte según las reglas del proyecto. Las propuestas implementadas se
+indican junto a su título. Cada propuesta respeta los principios de producto
+(cero presión, cero notificaciones, cero gamificación, cifras neutras) y la
+regla técnica de cero dependencias. El dueño decide qué pasa a una fase.
 
 ---
 
@@ -40,7 +40,7 @@ dependencias. El dueño decide qué pasa a una fase.
 - **Archivos**: `public/index.html` (manejador de teclado existente).
 - **Esfuerzo**: pequeño (S).
 
-## 4. Impresión del registro (hoja de papel)
+## 4. Impresión del registro (hoja de papel) (implementada en Fase 7)
 
 - **Problema**: el registro es el archivo permanente del sistema, pero está
   atrapado en la pantalla; no hay forma de guardarlo en papel o PDF sin
