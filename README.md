@@ -36,14 +36,17 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 
 ### Recorrido
 
-1. **Capturar.** Escribe en el campo de arriba ("¿Qué quieres avanzar?") y pulsa
-   Enter. Desde Hoy se abre Bandeja mostrando la nueva tarea, guardada solo con
-   título; desde Bandeja puedes seguir capturando sin salir de ella.
-2. **Bandeja.** Cada tarea tiene "Definir" (resultado deseado opcional + siguiente
-   acción obligatoria) y "Elegir para hoy". Si ya está en el plan de hoy, en su
-   lugar aparece la marca "En el plan de hoy".
-3. **Hoy.** Muestra una sola acción en grande, "Para: &lt;resultado&gt;" y dos
-   botones: "Empezar" y "Ajustar". Debajo, "Después" con el resto del plan; cada
+1. **Capturar.** Escribe en el campo de arriba una tarea concreta (p. ej.,
+   "Física II: resolver tres problemas") y pulsa Enter. Ese único texto se
+   guarda como título y acción inicial. Desde Hoy se abre Bandeja mostrando
+   la nueva tarea; desde Bandeja puedes seguir capturando sin salir de ella.
+2. **Bandeja.** Puedes elegir inmediatamente una tarea nueva para hoy o editar
+   su acción. Las tareas anteriores sin acción muestran "Definir acción" y
+   necesitan completar ese único campo antes de elegirlas. Si la tarea ya está
+   en el plan, aparece "En el plan de hoy".
+3. **Hoy.** Muestra una sola acción en grande y dos botones: "Empezar" y
+   "Ajustar". Si una tarea anterior tiene resultado, también muestra "Para:".
+   Debajo, "Después" con el resto del plan; cada
    una con un enlace para subirla al primer lugar. "Ajustar" ofrece también
    **Pausar esta tarea** (la aparta de los planes sin terminarla) y **Mover a
    otro día…** (reprogramar su fecha de trabajo, sin tocar su fecha límite).

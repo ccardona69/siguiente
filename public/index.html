@@ -613,16 +613,19 @@
     }
 
     // ---------- acciones de interfaz ----------
-    // captura: desde Hoy muestra la nueva tarea en Bandeja; allí conserva el foco
+    // un solo texto crea la tarea y su acción inicial; Hoy muestra la nueva entrada en Bandeja
     function doCapture(title) {
       var r = Core.captureTask(STATE, { title: title }, now());
       if (!r.ok) return;
+      var task = r.state.tasks[r.state.tasks.length - 1];
+      var defined = Core.defineTask(r.state, { taskId: task.id, nextAction: task.title }, now());
+      if (!defined.ok) return;
       if (VIEW.name === 'hoy') {
-        VIEW = { name: 'bandeja', capturedTaskId: r.state.tasks[r.state.tasks.length - 1].id };
+        VIEW = { name: 'bandeja', capturedTaskId: task.id };
       } else {
         VIEW.focusCapture = true;
       }
-      apply(r.state);
+      apply(defined.state);
     }
 
     // elegir para hoy; si falta la siguiente acción, se abre el formulario y se reintenta
@@ -700,16 +703,14 @@
       if (r.ok) apply(r.state);
     }
 
-    // guardar la definición (usada por Definir, por Elegir sin acción y por Ajustar)
+    // edita solo la acción; conserva el resultado que traigan tareas antiguas
     function onSaveDefine() {
-      var o = document.getElementById('d-outcome');
       var n = document.getElementById('d-next');
-      var outcome = o ? o.value : '';
       var nextAction = n ? n.value : '';
-      var r = Core.defineTask(STATE, { taskId: VIEW.taskId, outcome: outcome, nextAction: nextAction }, now());
+      var task = findTaskUi(VIEW.taskId);
+      var r = Core.defineTask(STATE, { taskId: VIEW.taskId, outcome: task ? task.outcome : null, nextAction: nextAction }, now());
       if (!r.ok) {
         VIEW.defineError = r.error;
-        VIEW.draftOutcome = outcome;
         VIEW.draftNext = nextAction;
         render();
         return;
@@ -862,8 +863,9 @@
 
     // barra superior común
     function appbarHtml() {
-      var titles = { hoy: fmtHeaderDate(localDate()), bandeja: 'Bandeja', definir: 'Definir', ajustar: 'Ajustar', reprogramar: 'Mover de día', semana: 'Esta semana', progreso: 'Tu avance' };
-      var title = VIEW.menu ? 'Menú' : (titles[VIEW.name] || 'Siguiente');
+      var titles = { hoy: fmtHeaderDate(localDate()), bandeja: 'Bandeja', definir: 'Definir acción', ajustar: 'Ajustar', reprogramar: 'Mover de día', semana: 'Esta semana', progreso: 'Tu avance' };
+      var editing = VIEW.name === 'definir' && findTaskUi(VIEW.taskId);
+      var title = VIEW.menu ? 'Menú' : (editing && editing.nextAction ? 'Editar acción' : (titles[VIEW.name] || 'Siguiente'));
       return '<div class="appbar">' +
         '<div class="appbar-title"><p class="wordmark">Siguiente</p><h1>' + esc(title) + '</h1></div>' +
         '<div class="appbar-tools"><span class="saveind" id="saveind">' + esc(saveText()) + '</span>' +
@@ -935,8 +937,10 @@
       var rest = plan.slice(1);
       var html = sessionBanner();
       html += '<section class="now-card"><div class="now-topline">' +
-        '<p class="kicker">AHORA</p><p class="task-context"><span>' + esc(first.task.title) + '</span></p></div>' +
-        '<p class="hero">' + esc(first.task.nextAction) + '</p>';
+        '<p class="kicker">AHORA</p>' +
+        (first.task.title !== first.task.nextAction
+          ? '<p class="task-context"><span>' + esc(first.task.title) + '</span></p>' : '') +
+        '</div><p class="hero">' + esc(first.task.nextAction) + '</p>';
       if (first.task.outcome) {
         html += '<p class="for-outcome"><strong>Para:</strong> ' + esc(first.task.outcome) + '</p>';
       }
@@ -947,9 +951,10 @@
       if (rest.length) {
         html += '<p class="section-label">Después</p><ul class="rows tight">';
         rest.forEach(function (it) {
+          var detail = it.task.title !== it.task.nextAction ? esc(it.task.title) : '';
+          if (it.task.outcome) detail += (detail ? ' · ' : '') + 'Para: ' + esc(it.task.outcome);
           html += '<li class="later"><span class="txt">' + esc(it.task.nextAction) +
-            '<span class="sub">' + esc(it.task.title) +
-            (it.task.outcome ? ' · Para: ' + esc(it.task.outcome) : '') + '</span>' +
+            (detail ? '<span class="sub">' + detail + '</span>' : '') +
             '</span><button type="button" class="link" data-action="tofirst" data-id="' + esc(it.task.id) + '">Subir</button></li>';
         });
         html += '</ul>';
@@ -978,14 +983,17 @@
         html += '<div class="t-topline"><div class="t-title">' + esc(t.title) + '</div>' +
           (isInbox ? '<span class="t-tag">por definir</span>' : '') +
           '</div>';
-        html += t.nextAction
-          ? '<div class="t-next">Siguiente: ' + esc(t.nextAction) + '</div>'
-          : '<div class="t-next none">Sin siguiente acción</div>';
+        if (t.nextAction !== t.title) {
+          html += t.nextAction
+            ? '<div class="t-next">Siguiente: ' + esc(t.nextAction) + '</div>'
+            : '<div class="t-next none">Sin siguiente acción</div>';
+        }
         if (dur > 0) {
           html += '<div class="t-dur">' + esc(fmtDur(dur)) + ' registrado</div>';
         }
         html += '<div class="t-actions">';
-        html += '<button type="button" class="btn btn--quiet btn--small" data-action="define" data-id="' + esc(t.id) + '">Definir</button>';
+        html += '<button type="button" class="btn btn--quiet btn--small" data-action="define" data-id="' + esc(t.id) + '">' +
+          (isInbox ? 'Definir acción' : 'Editar acción') + '</button>';
         html += inToday[t.id]
           ? '<span class="badge">En el plan de hoy</span>'
           : '<button type="button" class="btn btn--primary btn--small" data-action="choose" data-id="' + esc(t.id) + '">Elegir para hoy</button>';
@@ -995,24 +1003,22 @@
       return html;
     }
 
-    // formulario único de definición
+    // las tareas antiguas sin acción y la edición usan un solo campo
     function definirHtml() {
       var task = findTaskUi(VIEW.taskId);
       if (!task) {
         return '<div class="empty"><p>No se encontró la tarea.</p>' +
           '<button type="button" class="btn btn--quiet" data-action="go" data-view="bandeja">Volver a la bandeja</button></div>';
       }
-      var outcomeVal = ('draftOutcome' in VIEW) ? VIEW.draftOutcome : (task.outcome || '');
       var nextVal = ('draftNext' in VIEW) ? VIEW.draftNext : (task.nextAction || '');
-
-      var html = '<section class="define-card"><p class="define-for">' + esc(task.title) + '</p>'; 
+      var html = '<section class="define-card">' +
+        (task.title !== task.nextAction ? '<p class="define-for">' + esc(task.title) + '</p>' : '');
       if (VIEW.defineError) html += '<p class="notice">' + esc(VIEW.defineError) + '</p>';
-      html += '<label class="field"><span>Resultado deseado (opcional)</span>' +
-        '<input id="d-outcome" type="text" autocomplete="off" value="' + esc(outcomeVal) + '"></label>';
       html += '<label class="field"><span>Siguiente acción</span>' +
         '<input id="d-next" type="text" autocomplete="off" value="' + esc(nextVal) + '"></label>';
       html += '<div class="stack">' +
-        '<button type="button" class="btn btn--primary" data-action="save-define">Guardar</button>' +
+        '<button type="button" class="btn btn--primary" data-action="save-define">' +
+          (VIEW.choose ? 'Guardar y elegir para hoy' : 'Guardar') + '</button>' +
         '<button type="button" class="link" data-action="cancel-define">Cancelar</button>' +
       '</div></section>';
       return html;
@@ -1029,7 +1035,7 @@
       var html = '<section class="define-card">' +
         '<p class="kicker">AJUSTAR TAREA</p>' +
         '<p class="hero" style="font-size: 22px; margin-bottom: 6px;">' + esc(task.title) + '</p>';
-      if (task.nextAction) {
+      if (task.nextAction && task.nextAction !== task.title) {
         html += '<p class="for-outcome"><strong>Siguiente acción:</strong> ' + esc(task.nextAction) + '</p>';
       }
       if (task.outcome) {
@@ -1039,7 +1045,7 @@
         html += '<p class="for-outcome" style="color: var(--text-faint); margin-top: 4px;">Tiempo acumulado: ' + esc(fmtDur(totalMs)) + '</p>';
       }
       html += '<div class="stack" style="margin-top: 24px;">' +
-        '<button type="button" class="btn btn--primary" data-action="adjust-edit" data-id="' + esc(task.id) + '">Modificar acción o resultado</button>' +
+        '<button type="button" class="btn btn--primary" data-action="adjust-edit" data-id="' + esc(task.id) + '">Editar acción</button>' +
         '<button type="button" class="btn btn--quiet" data-action="adjust-remove" data-id="' + esc(task.id) + '">Quitar del plan de hoy</button>' +
         '<button type="button" class="btn btn--quiet" data-action="adjust-pause" data-id="' + esc(task.id) + '">Pausar esta tarea</button>' +
         '<button type="button" class="btn btn--quiet" data-action="adjust-reschedule" data-id="' + esc(task.id) + '">Mover a otro día…</button>' +
@@ -1095,7 +1101,9 @@
       if (VIEW.reentry) {
         html += '<p class="notice">Sesión abierta desde el ' + esc(fmtStamp(s.startedAt)) + '.</p>';
       }
-      html += '<div class="session-top"><p class="task-context"><span>' + esc(task ? task.title : '(tarea no encontrada)') + '</span></p>';
+      html += '<div class="session-top">' +
+        (task && task.title !== task.nextAction
+          ? '<p class="task-context"><span>' + esc(task.title) + '</span></p>' : '');
       html += '<p class="hero">' + esc(task ? task.nextAction : '(tarea no encontrada)') + '</p>';
       if (task && task.outcome) {
         html += '<p class="for-outcome">Para: ' + esc(task.outcome) + '</p>';
