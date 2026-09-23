@@ -42,6 +42,17 @@
     return typeof value === 'string' && value.trim() !== '';
   }
 
+  // fecha local 'YYYY-MM-DD' bien formada y real (el núcleo la valida, nunca la calcula)
+  function validDate(value) {
+    if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+    var parts = value.split('-');
+    var y = Number(parts[0]);
+    var m = Number(parts[1]);
+    var d = Number(parts[2]);
+    var dt = new Date(Date.UTC(y, m - 1, d));
+    return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+  }
+
   // estado inicial vacío
   function emptyState() {
     return {
@@ -199,6 +210,70 @@
     if (!target) return ok(state);
     var kept = state.planItems.filter(function (i) { return i.id !== target.id; });
     return ok(Object.assign({}, state, { planItems: renumber(kept, plan.id) }));
+  }
+
+  // pausar: aparta la tarea de todos los planes sin terminarla ni tocar su historial
+  // se retoma cuando la persona quiera, con 'Elegir para hoy'
+  function pauseTask(state, data) {
+    var task = findTask(state, data && data.taskId);
+    if (!task) return err('No se encontró la tarea.');
+    if (task.status === 'done') return err('La tarea ya está terminada.');
+    var own = openSession(state);
+    if (own && own.taskId === task.id) {
+      return err('Cierra la sesión abierta antes de apartar la tarea.');
+    }
+    var touched = {};
+    var kept = state.planItems.filter(function (i) {
+      if (i.taskId === task.id) { touched[i.planId] = true; return false; }
+      return true;
+    });
+    Object.keys(touched).forEach(function (planId) {
+      kept = renumber(kept, planId);
+    });
+    return ok(Object.assign({}, state, { planItems: kept }));
+  }
+
+  // reprogramar: mueve la tarea del plan de un día al plan de otro
+  // solo cambia la fecha de trabajo: el vencimiento (dueDate) queda intacto
+  function rescheduleTask(state, data, now) {
+    var task = findTask(state, data && data.taskId);
+    if (!task) return err('No se encontró la tarea.');
+    if (task.status === 'done') return err('La tarea ya está terminada.');
+    if (!filled(task.nextAction)) return err('Define la siguiente acción antes de reprogramar la tarea.');
+    if (!validDate(data && data.fromDate) || !validDate(data && data.toDate)) {
+      return err('Las fechas del cambio no son válidas.');
+    }
+    if (data.fromDate === data.toDate) {
+      return err('Elige un día distinto al actual del plan.');
+    }
+    var fromPlan = findPlan(state, data.fromDate);
+    var target = fromPlan && state.planItems.filter(function (i) {
+      return i.planId === fromPlan.id && i.taskId === task.id;
+    })[0];
+    if (!fromPlan || !target) return err('La tarea no está en el plan de ese día.');
+
+    // quita el item del plan origen y renumera el resto
+    var kept = state.planItems.filter(function (i) { return i.id !== target.id; });
+    kept = renumber(kept, fromPlan.id);
+
+    // toma el plan destino o lo crea; si la tarea ya está ahí, no se duplica
+    var toPlan = findPlan(state, data.toDate);
+    var plans = state.plans;
+    if (!toPlan) {
+      toPlan = { id: uid(now), date: data.toDate, note: null, createdAt: now };
+      plans = state.plans.concat([toPlan]);
+    }
+    var already = kept.filter(function (i) {
+      return i.planId === toPlan.id && i.taskId === task.id;
+    })[0];
+    if (already) return ok(Object.assign({}, state, { plans: plans, planItems: kept }));
+
+    var count = kept.filter(function (i) { return i.planId === toPlan.id; }).length;
+    var item = { id: uid(now), planId: toPlan.id, taskId: task.id, order: count };
+    return ok(Object.assign({}, state, {
+      plans: plans,
+      planItems: kept.concat([item])
+    }));
   }
 
   // empezar: abre una sesión de trabajo; solo puede haber una abierta a la vez
@@ -415,6 +490,8 @@
     chooseForToday: chooseForToday,
     moveToFirst: moveToFirst,
     removeFromToday: removeFromToday,
+    pauseTask: pauseTask,
+    rescheduleTask: rescheduleTask,
     startSession: startSession,
     closeSession: closeSession,
     markTaskDone: markTaskDone,

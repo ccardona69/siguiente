@@ -229,6 +229,157 @@
     assertEqual(r.state.planItems.length, 0);
   });
 
+  // --- pausar: apartar la tarea sin terminarla ---
+
+  test('pauseTask saca la tarea de todos sus planes, renumera y conserva la acción', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    // la tarea también está en el plan de otro día
+    var s = Core.chooseForToday(d.state, { taskId: d.id, date: '2026-01-02' }, clock()).state;
+    // otra tarea en el plan de hoy, para comprobar la renumeración
+    s = Core.captureTask(s, { title: 'Segunda' }, clock()).state;
+    var id2 = s.tasks[s.tasks.length - 1].id;
+    s = Core.defineTask(s, { taskId: id2, nextAction: 'Arrancar' }, clock()).state;
+    s = Core.chooseForToday(s, { taskId: id2, date: d.date }, clock()).state;
+
+    var r = Core.pauseTask(s, { taskId: d.id });
+    assert(r.ok === true);
+    assertEqual(r.state.planItems.length, 1, 'solo queda el item de la segunda tarea');
+    assertEqual(r.state.planItems[0].taskId, id2);
+    assertEqual(r.state.planItems[0].order, 0, 'renumerado desde 0');
+    var task = Core.taskById(r.state, d.id);
+    assertEqual(task.status, 'active', 'sigue activa, no terminada');
+    assertEqual(task.nextAction, 'Abrir el documento', 'la siguiente acción se conserva');
+  });
+
+  test('pauseTask con sesión propia abierta es rechazada', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    var r = Core.pauseTask(d.state, { taskId: d.id });
+    assert(r.ok === false);
+    assertEqual(r.error, 'Cierra la sesión abierta antes de apartar la tarea.');
+  });
+
+  test('pauseTask conserva las sesiones cerradas de la tarea', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(2);
+    var s = Core.closeSession(d.state, { progress: 'some', finished: false, nextStep: 'Seguir' }, clock()).state;
+    var r = Core.pauseTask(s, { taskId: d.id });
+    assert(r.ok === true);
+    assertEqual(r.state.sessions.length, 1, 'la sesión cerrada sigue ahí');
+    assertEqual(Core.taskTotalDuration(r.state, d.id), 2 * 3600 * 1000, 'el tiempo acumulado no cambia');
+    assertEqual(Core.taskById(r.state, d.id).nextAction, 'Seguir', 'el siguiente paso escrito al cerrar se conserva');
+  });
+
+  test('pauseTask sin planes es un no-op correcto', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { today: false });
+    var r = Core.pauseTask(d.state, { taskId: d.id });
+    assert(r.ok === true);
+    assertEqual(r.state.planItems.length, 0);
+  });
+
+  test('pauseTask rechaza tarea inexistente o terminada', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    var r1 = Core.pauseTask(d.state, { taskId: 'inexistente' });
+    assert(r1.ok === false);
+    assertEqual(r1.error, 'No se encontró la tarea.');
+    var s = Core.markTaskDone(d.state, { taskId: d.id }, clock()).state;
+    var r2 = Core.pauseTask(s, { taskId: d.id });
+    assert(r2.ok === false);
+    assertEqual(r2.error, 'La tarea ya está terminada.');
+  });
+
+  // --- reprogramar: mover la tarea al plan de otro día ---
+
+  test('rescheduleTask mueve la tarea a otro día y renumera ambos planes', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    var s = Core.captureTask(d.state, { title: 'Segunda' }, clock()).state;
+    var id2 = s.tasks[s.tasks.length - 1].id;
+    s = Core.defineTask(s, { taskId: id2, nextAction: 'Arrancar' }, clock()).state;
+    s = Core.chooseForToday(s, { taskId: id2, date: d.date }, clock()).state;
+
+    var r = Core.rescheduleTask(s, { taskId: d.id, fromDate: d.date, toDate: '2026-01-03' }, clock());
+    assert(r.ok === true);
+    var origen = Core.todayPlan(r.state, d.date);
+    assertEqual(origen.length, 1, 'el plan de origen solo conserva la segunda tarea');
+    assertEqual(origen[0].taskId, id2);
+    assertEqual(origen[0].order, 0, 'renumerado desde 0');
+    var destino = Core.todayPlan(r.state, '2026-01-03');
+    assertEqual(destino.length, 1);
+    assertEqual(destino[0].taskId, d.id);
+    assertEqual(destino[0].order, 0);
+  });
+
+  test('rescheduleTask con plan destino existente añade al final sin duplicar', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    var s = Core.captureTask(d.state, { title: 'Segunda' }, clock()).state;
+    var id2 = s.tasks[s.tasks.length - 1].id;
+    s = Core.defineTask(s, { taskId: id2, nextAction: 'Arrancar' }, clock()).state;
+    s = Core.chooseForToday(s, { taskId: id2, date: '2026-01-03' }, clock()).state;
+
+    var r = Core.rescheduleTask(s, { taskId: d.id, fromDate: d.date, toDate: '2026-01-03' }, clock());
+    assert(r.ok === true);
+    var destino = Core.todayPlan(r.state, '2026-01-03');
+    assertEqual(destino.length, 2);
+    assertEqual(destino[1].taskId, d.id, 'entra al final del plan destino');
+    assertEqual(destino[1].order, 1);
+    // reprogramar de nuevo desde el mismo origen: ya no está ahí, así que es error
+    var r2 = Core.rescheduleTask(r.state, { taskId: d.id, fromDate: d.date, toDate: '2026-01-03' }, clock());
+    assert(r2.ok === false);
+    assertEqual(r2.error, 'La tarea no está en el plan de ese día.');
+    assertEqual(Core.todayPlan(r.state, '2026-01-03').length, 2, 'no se duplicó');
+  });
+
+  test('rescheduleTask nunca cambia el vencimiento ni la siguiente acción', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    var before = Core.taskById(d.state, d.id);
+    var r = Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: '2026-01-04' }, clock());
+    assert(r.ok === true);
+    var after = Core.taskById(r.state, d.id);
+    assertEqual(after.dueDate, before.dueDate, 'el vencimiento queda intacto');
+    assertEqual(after.nextAction, before.nextAction, 'la siguiente acción queda intacta');
+    assertEqual(after.updatedAt, before.updatedAt, 'la tarea no se modifica: solo se mueve de plan');
+  });
+
+  test('rescheduleTask rechaza fechas inválidas o iguales', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: false });
+    var r1 = Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: '2026-02-30' }, clock());
+    assert(r1.ok === false);
+    assertEqual(r1.error, 'Las fechas del cambio no son válidas.');
+    var r2 = Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: 'ayer' }, clock());
+    assert(r2.ok === false);
+    assertEqual(r2.error, 'Las fechas del cambio no son válidas.');
+    var r3 = Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: d.date }, clock());
+    assert(r3.ok === false);
+    assertEqual(r3.error, 'Elige un día distinto al actual del plan.');
+  });
+
+  test('rescheduleTask rechaza tarea sin siguiente acción, terminada o fuera del plan', function () {
+    var clock = fakeClock(ISO);
+    var s = Core.captureTask(Core.emptyState(), { title: 'Sin definir' }, clock()).state;
+    var id = s.tasks[0].id;
+    var r1 = Core.rescheduleTask(s, { taskId: id, fromDate: '2026-01-01', toDate: '2026-01-02' }, clock());
+    assert(r1.ok === false);
+    assertEqual(r1.error, 'Define la siguiente acción antes de reprogramar la tarea.');
+
+    var d = seed(clock, { today: false });
+    var r2 = Core.rescheduleTask(d.state, { taskId: d.id, fromDate: '2026-01-01', toDate: '2026-01-02' }, clock());
+    assert(r2.ok === false);
+    assertEqual(r2.error, 'La tarea no está en el plan de ese día.');
+
+    var s2 = Core.markTaskDone(d.state, { taskId: d.id }, clock()).state;
+    var r3 = Core.rescheduleTask(s2, { taskId: d.id, fromDate: '2026-01-01', toDate: '2026-01-02' }, clock());
+    assert(r3.ok === false);
+    assertEqual(r3.error, 'La tarea ya está terminada.');
+  });
+
   // --- sesiones ---
 
   test('startSession abre una sesión con la marca de inicio', function () {
@@ -599,9 +750,18 @@
     Core.defineTask(d.state, { taskId: d.id, nextAction: 'otra' }, clock());
     Core.chooseForToday(d.state, { taskId: d.id, date: d.date }, clock());
     Core.moveToFirst(d.state, { date: d.date, taskId: d.id });
+    Core.removeFromToday(d.state, { date: d.date, taskId: d.id });
+    Core.pauseTask(d.state, { taskId: d.id });
+    Core.rescheduleTask(d.state, { taskId: d.id, fromDate: d.date, toDate: '2026-01-05' }, clock());
     Core.closeSession(d.state, { progress: 'yes', finished: true }, clock());
     Core.markTaskDone(d.state, { taskId: d.id }, clock());
     assertEqual(JSON.stringify(d.state), snap, 'el estado sembrado no cambió');
+
+    var d2 = seed(clock, { session: false });
+    var snap2 = JSON.stringify(d2.state);
+    Core.pauseTask(d2.state, { taskId: d2.id });
+    Core.rescheduleTask(d2.state, { taskId: d2.id, fromDate: d2.date, toDate: '2026-01-05' }, clock());
+    assertEqual(JSON.stringify(d2.state), snap2, 'el estado sembrado sin sesión no cambió');
   });
 
   // --- ejecución y salida ---

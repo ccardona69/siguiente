@@ -14,6 +14,9 @@ puedo dar ahora?"**.
 - **Fase 3** — menú de ajuste completo en Hoy (modificar, quitar del plan, terminar
   tarea), ergonomía de captura continua, distinción sutil en Bandeja de tareas
   por definir, tiempo acumulado por tarea y runner de pruebas interactivo.
+- **Fase 4** — **pausar** una tarea (la aparta de todos los planes sin terminarla
+  ni tocar su historial; se retoma con "Elegir para hoy") y **reprogramar** (mover
+  la tarea al plan de otro día: cambia la fecha de trabajo, nunca el vencimiento).
 
 ## Uso
 
@@ -36,7 +39,9 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
    lugar aparece la marca "En el plan de hoy".
 3. **Hoy.** Muestra una sola acción en grande, "Para: &lt;resultado&gt;" y dos
    botones: "Empezar" y "Ajustar". Debajo, "Después" con el resto del plan; cada
-   una con un enlace para subirla al primer lugar.
+   una con un enlace para subirla al primer lugar. "Ajustar" ofrece también
+   **Pausar esta tarea** (la aparta de los planes sin terminarla) y **Mover a
+   otro día…** (reprogramar su fecha de trabajo, sin tocar su fecha límite).
 4. **Sesión.** "Empezar" abre una sesión: acción, hora de inicio y tiempo
    transcurrido, que **cuenta hacia arriba** y se recalcula solo con las marcas de
    tiempo. El anillo da una vuelta por hora: es solo señal de que el tiempo corre,
@@ -148,7 +153,8 @@ Cada caso de uso recibe `(estado, datos, now)` y devuelve `{ ok: true, state }` 
 `{ ok: false, error }` sin mutar el estado recibido ni lanzar excepciones.
 
 - Casos de uso: `captureTask`, `defineTask`, `chooseForToday`, `moveToFirst`,
-  `removeFromToday`, `startSession`, `closeSession`, `markTaskDone`, `importState`.
+  `removeFromToday`, `pauseTask`, `rescheduleTask`, `startSession`, `closeSession`,
+  `markTaskDone`, `importState`.
 - Sin envoltura: `emptyState`, `migrate`, `stampSave`, `exportState`, `uid`.
 - Consultas: `inbox`, `todayPlan(date)`, `openSession`, `firstActionOf(date)`,
   `sessionDuration(session, now)`, `taskById(id)`, `closedSessions`,
@@ -158,12 +164,12 @@ Cada caso de uso recibe `(estado, datos, now)` y devuelve `{ ok: true, state }` 
 reloj por inyección y corre igual en Node. `sessionsBetween` recibe marcas ISO ya
 calculadas: el núcleo nunca decide qué día es "hoy" ni dónde empieza la semana.
 
-## Fuera de alcance (a revisar en la Fase 4)
+## Fuera de alcance (a revisar en una fase futura)
 
-Pausar y reprogramar, revisión semanal asistida, atajos de teclado,
-deshacer breve tras "Borrar todo", datos de ejemplo, notificaciones,
-gamificación y rachas. Un horario de clases real (aulas, horas) para la vista
-Semana: sigue siendo un registro de lo trabajado, no un calendario.
+Revisión semanal asistida, atajos de teclado, deshacer breve tras "Borrar todo",
+datos de ejemplo, notificaciones, gamificación y rachas. Un horario de clases
+real (aulas, horas) para la vista Semana: sigue siendo un registro de lo
+trabajado, no un calendario.
 
 Ideas surgidas al construir; **ninguna se implementa ahora**, el uso decide:
 

@@ -2,7 +2,8 @@
 // que guarda y devuelve el estado completo como un blob JSON en KV. Sin dependencias.
 
 const STATE_KEY = 'state';
-const MAX_BYTES = 1024 * 1024; // 1 MB: el estado de un solo usuario nunca se acerca
+const CORRUPT_KEY = 'state.corrupt'; // respaldo de clave fija: sobrescribirlo es idempotente y no acumula basura
+const MAX_BYTES = 1024 * 1024; // 1 MB en bytes UTF-8 reales: el estado de un solo usuario nunca se acerca
 
 export default {
   async fetch(request, env) {
@@ -24,18 +25,13 @@ export default {
     }
 
     if (request.method === 'GET') {
-      const stored = await env.SIGUIENTE_KV.get(STATE_KEY);
-      if (!stored) return json({ state: null });
-      try {
-        return json({ state: JSON.parse(stored) });
-      } catch (e) {
-        return json({ error: 'el estado guardado no se puede leer' }, 500);
-      }
+      return readState(env);
     }
 
     if (request.method === 'PUT') {
       const body = await request.text();
-      if (body.length > MAX_BYTES) return json({ error: 'estado demasiado grande' }, 413);
+      // el límite se mide en bytes UTF-8, no en las unidades UTF-16 que cuenta String.length
+      if (byteLength(body) > MAX_BYTES) return json({ error: 'estado demasiado grande' }, 413);
       const parsed = parseState(body);
       if (!parsed.ok) return json({ error: parsed.error }, 400);
       await env.SIGUIENTE_KV.put(STATE_KEY, JSON.stringify(parsed.value));
@@ -45,6 +41,24 @@ export default {
     return json({ error: 'método no permitido' }, 405, { Allow: 'GET, PUT' });
   }
 };
+
+// devuelve el estado guardado; si el blob no se puede leer, lo aparta y se declara vacío
+// es la única lectura del Worker que escribe en KV: mueve los bytes ilegibles a CORRUPT_KEY
+// (clave fija, así un segundo GET sobrescribe lo mismo) para que el cliente suba su copia local
+// y la app se recupere sola en el siguiente guardado, sin dejar al usuario atrapado
+async function readState(env) {
+  const stored = await env.SIGUIENTE_KV.get(STATE_KEY);
+  if (!stored) return json({ state: null });
+  try {
+    return json({ state: JSON.parse(stored) });
+  } catch (e) {
+    // si el respaldo falla se responde igual: recuperar la app importa más que conservar el blob ilegible
+    try {
+      await env.SIGUIENTE_KV.put(CORRUPT_KEY, stored);
+    } catch (e2) {}
+    return json({ state: null });
+  }
+}
 
 // respuesta JSON sin caché
 function json(data, status = 200, extra = {}) {
@@ -57,6 +71,11 @@ function json(data, status = 200, extra = {}) {
   });
 }
 
+// tamaño real del cuerpo en bytes UTF-8, que es lo que viaja y lo que se cuenta aquí
+function byteLength(text) {
+  return new TextEncoder().encode(text).byteLength;
+}
+
 // valida el token compartido solo si el Worker tiene SYNC_TOKEN
 // solo por cabecera Authorization: nunca se lee de la URL, que acabaría en los logs
 function authorized(request, env) {
@@ -64,10 +83,22 @@ function authorized(request, env) {
   if (!expected) return true;
   const header = request.headers.get('Authorization') || '';
   const bearer = header.startsWith('Bearer ') ? header.slice(7) : '';
-  return bearer === expected;
+  return timingSafeEqual(bearer, expected);
 }
 
-// el cuerpo debe ser un objeto JSON con schemaVersion 1
+// compara dos cadenas sin salida temprana, para no filtrar el token por diferencias de tiempo de
+// respuesta; en JavaScript es una mitigación y no una garantía, porque el motor puede introducirlas
+function timingSafeEqual(a, b) {
+  const max = Math.max(a.length, b.length);
+  let diff = a.length ^ b.length;
+  for (let i = 0; i < max; i += 1) {
+    diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+  }
+  return diff === 0;
+}
+
+// el cuerpo debe ser un objeto JSON con schemaVersion numérico: la versión concreta la decide el
+// cliente y el Worker ni la conoce ni la juzga, porque solo es un almacén de blobs
 function parseState(body) {
   let value;
   try {
@@ -78,8 +109,13 @@ function parseState(body) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { ok: false, error: 'el estado no tiene la forma esperada' };
   }
-  if (value.schemaVersion !== 1) {
-    return { ok: false, error: 'versión de esquema incompatible' };
+  if (!isSchemaVersion(value.schemaVersion)) {
+    return { ok: false, error: 'schemaVersion debe ser un número' };
   }
   return { ok: true, value };
+}
+
+// versión de esquema presente, numérica y finita; cualquier número sirve, incluidos los futuros
+function isSchemaVersion(value) {
+  return typeof value === 'number' && Number.isFinite(value);
 }
