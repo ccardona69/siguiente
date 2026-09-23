@@ -792,6 +792,31 @@
     assertEqual(Core.taskTotalDuration(t2, 'inexistente'), 0, 'cero para tarea inexistente');
   });
 
+  test('sessionsTotalDuration suma las duraciones de una lista de sesiones cerradas', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(1);
+    var s = Core.closeSession(d.state, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    clock.advanceHours(1);
+    s = Core.startSession(s, { taskId: d.id }, clock()).state;
+    clock.advanceHours(2);
+    s = Core.closeSession(s, { progress: 'yes', finished: false, nextStep: '' }, clock()).state;
+    var list = Core.sessionsBetween(s, ISO, clock());
+    assertEqual(list.length, 2, 'dos sesiones cerradas dentro del rango');
+    assertEqual(Core.sessionsTotalDuration(list, clock()), 3 * 3600 * 1000, '1 h + 2 h sumadas');
+    assertEqual(Core.sessionsTotalDuration([], clock()), 0, 'cero para lista vacía');
+    assertEqual(Core.sessionsTotalDuration(null, clock()), 0, 'cero para lista ausente');
+  });
+
+  test('sessionsTotalDuration cuenta una sesión abierta hasta el reloj y no muta el estado', function () {
+    var clock = fakeClock(ISO);
+    var d = seed(clock, { session: true });
+    clock.advanceHours(2);
+    var before = JSON.stringify(d.state.sessions);
+    assertEqual(Core.sessionsTotalDuration(d.state.sessions, clock()), 2 * 3600 * 1000, 'la abierta cuenta hasta now');
+    assertEqual(JSON.stringify(d.state.sessions), before, 'el estado recibido no se muta');
+  });
+
   test('las consultas nuevas no mutan el estado recibido', function () {
     var clock = fakeClock(ISO);
     var d = seed(clock, { session: true });

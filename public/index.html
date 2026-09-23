@@ -147,6 +147,7 @@
     .day-head { display: flex; align-items: baseline; gap: 8px; }
     .day-head .d-name { font-weight: 600; font-size: 14px; text-transform: capitalize; }
     .day-head .d-date { color: var(--text-faint); font-size: 12px; }
+    .day-head .d-total { margin-left: auto; color: var(--text-faint); font-size: 12px; white-space: nowrap; font-variant-numeric: tabular-nums; }
     .day.today .d-name { color: var(--accent); }
     .day-items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
     .day-empty { margin: 8px 0 0; color: var(--text-faint); font-size: 13px; }
@@ -1524,7 +1525,11 @@
       perDay.forEach(function (d) {
         html += '<div class="day' + (d.ds === today ? ' today' : '') + '">' +
           '<div class="day-head"><span class="d-name">' + esc(fmtDayName(d.ds)) + '</span>' +
-          '<span class="d-date">' + esc(fmtDayDate(d.ds)) + '</span></div>';
+          '<span class="d-date">' + esc(fmtDayDate(d.ds)) + '</span>' +
+          (d.sessions.length
+            ? '<span class="d-total">' + esc(fmtDur(Core.sessionsTotalDuration(d.sessions, null))) + '</span>'
+            : '') +
+          '</div>';
         if (d.sessions.length || d.planned.length) {
           html += '<ul class="day-items">';
           d.sessions.forEach(function (x) {

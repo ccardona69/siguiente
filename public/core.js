@@ -590,6 +590,14 @@
       }, 0);
   }
 
+  // consulta: suma de duraciones de una lista de sesiones en milisegundos
+  // las cerradas cuentan hasta su endedAt; una abierta cuenta hasta el reloj (now)
+  function sessionsTotalDuration(sessions, now) {
+    return (sessions || []).reduce(function (sum, s) {
+      return sum + sessionDuration(s, now);
+    }, 0);
+  }
+
   // objeto público único
   var SiguienteCore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -621,7 +629,8 @@
     closedSessions: closedSessions,
     sessionsBetween: sessionsBetween,
     sessionStats: sessionStats,
-    taskTotalDuration: taskTotalDuration
+    taskTotalDuration: taskTotalDuration,
+    sessionsTotalDuration: sessionsTotalDuration
   };
 
   // expone el núcleo como global y, en Node, también por module.exports
