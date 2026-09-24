@@ -199,43 +199,50 @@
     .results { display: grid; gap: 9px; margin-top: 20px; }
     .result { width: 100%; min-height: 54px; padding: 14px 17px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); color: var(--text); font: 500 15px/1.3 var(--font); text-align: left; cursor: pointer; }
 
-    /* Semana: secuencia de días en un solo riel, sin tarjetas de color repetidas */
-    .week-stack { position: relative; display: grid; gap: 14px; margin: 8px 0 0 14px; padding-left: 20px; }
-    .week-stack::before { position: absolute; top: 20px; bottom: 20px; left: 6px; width: 1px; background: var(--line); content: ""; }
-    .day { position: relative; padding: 18px clamp(15px, 4vw, 23px); border: 1px solid var(--line); border-radius: 19px; background: var(--surface); }
-    .day::before { position: absolute; top: 23px; left: -19px; width: 8px; height: 8px; border: 2px solid var(--bg); border-radius: 50%; background: var(--text-dim); content: ""; }
-    .day.today::before { background: var(--accent); }
-    .day-head { display: flex; align-items: baseline; gap: 8px; }
-    .day-head .d-name { color: var(--text); font-size: 17px; font-weight: 600; text-transform: capitalize; }
-    .day-head .d-date { color: var(--text-dim); font-size: 13px; }
-    .day-head .d-total { margin-left: auto; color: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .day-items { list-style: none; display: grid; gap: 0; margin: 13px 0 0; padding: 0; }
-    .d-item { display: flex; align-items: baseline; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); color: var(--text); font-size: 13px; line-height: 1.4; }
-    .d-item .d-dur, .d-item.planned .tag { margin-left: auto; color: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .d-item.planned { color: var(--text-dim); }
-    .day-empty { margin: 14px 0 0; color: var(--text-faint); font-size: 13px; }
+    /* Semana: fechas en el margen y sesiones como notas de una bitácora */
+    .week-range { margin: 0 0 15px; color: var(--text-dim); font-size: 13px; }
+    .week-stack { display: grid; gap: 4px; }
+    .day { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 15px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    .day.today { margin: 8px -12px 0; padding: 19px 12px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+    .day-head { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; margin: 0; padding-left: 11px; border-left: 2px solid var(--line); }
+    .day.today .day-head { border-left-color: var(--accent); }
+    .day-head .d-name { color: var(--text-dim); font-size: 12px; font-weight: 550; text-transform: capitalize; }
+    .day-head .d-date { color: var(--text); font: 400 18px/1.2 var(--display); white-space: nowrap; }
+    .day-head .d-today { margin-top: 5px; color: var(--text-dim); font-size: 11px; }
+    .day-body { min-width: 0; }
+    .day-body .d-total { margin: 0 0 7px; color: var(--text-dim); font-size: 12px; font-variant-numeric: tabular-nums; }
+    .day-items { list-style: none; margin: 0; padding: 0; }
+    .d-item { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 9px 0; border-top: 1px solid var(--line); color: var(--text); font-size: 13px; line-height: 1.4; }
+    .d-item .d-time, .d-item .d-dur { color: var(--text-dim); font-size: 11px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .d-item .d-task { min-width: 0; overflow-wrap: anywhere; }
+    .day-plan { margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--line); }
+    .day-body > .day-plan:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+    .day-plan-label { margin: 0 0 4px; color: var(--text-dim); font-size: 12px; }
+    .day-plan .d-item { grid-template-columns: minmax(0, 1fr); border-top: 0; color: var(--text-dim); }
+    .day-empty { margin: 1px 0 0; color: var(--text-faint); font-size: 13px; }
 
-    /* Progreso: cifras en un solo panel y registro como archivo continuo */
-    .panel { padding: 0; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
-    .figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .figure { min-width: 0; padding: 18px clamp(10px, 3vw, 20px); }
-    .figure + .figure { border-left: 1px solid var(--line); }
-    .figure strong { display: block; color: var(--text); font: 400 clamp(19px, 4.5vw, 23px)/1.1 var(--display); letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
-    .figure span { display: block; margin-top: 10px; color: var(--text-dim); font-size: 11px; line-height: 1.35; }
-    .log-controls { display: grid; gap: 11px; margin: 15px 0 20px; }
+    /* Progreso: resumen en filas y registro sin paneles repetidos */
+    .panel { padding: 7px 20px; border: 1px solid var(--line); border-radius: 20px; background: var(--surface); }
+    .panel-note { margin: 12px 0 3px; color: var(--text-dim); font-size: 12px; }
+    .figures { display: grid; }
+    .figure { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 12px 0; }
+    .figure + .figure { border-top: 1px solid var(--line); }
+    .figure strong { order: 1; color: var(--text); font: 400 20px/1.2 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .figure span { color: var(--text-dim); font-size: 14px; line-height: 1.4; }
+    .log-controls { display: grid; gap: 12px; margin: 17px 0 4px; }
     .log-search { min-height: 48px; }
-    .log-month { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .log-month span { color: var(--text-dim); font-size: 13px; text-align: center; }
-    .log-month-btn { flex: none; width: 44px; height: 44px; border: 1px solid var(--line); border-radius: 13px; background: var(--surface); color: var(--text); font: 22px/1 var(--font); cursor: pointer; }
-    .log { position: relative; list-style: none; margin: 0 0 0 8px; padding: 0 0 0 20px; border-left: 1px solid var(--line); }
-    .log > li { position: relative; padding: 18px 0 20px; border-bottom: 1px solid var(--line); }
-    .log > li::before { position: absolute; top: 26px; left: -25px; width: 8px; height: 8px; border: 2px solid var(--bg); border-radius: 50%; background: var(--text-dim); content: ""; }
-    .log-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 3px 10px; color: var(--text-dim); font-size: 12px; }
-    .log-head .l-task { flex-basis: 100%; order: -1; color: var(--text); font-size: 15px; font-weight: 600; }
-    .log-head .l-dur { margin-left: auto; font-variant-numeric: tabular-nums; }
-    .log-outcome { display: flex; align-items: baseline; gap: 8px; margin-top: 11px; color: var(--text-dim); font-size: 12px; }
-    .log-step { display: block; margin: 7px 0 0; color: var(--text-dim); font-size: 12px; }
-    .log-empty { margin: 17px 0; color: var(--text-dim); font-size: 14px; }
+    .log-month { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+    .log-month span { color: var(--text); font-size: 14px; text-align: center; }
+    .log-month-btn { flex: none; width: 46px; height: 46px; border: 0; border-radius: 13px; background: transparent; color: var(--text); font: 22px/1 var(--font); cursor: pointer; }
+    .log { list-style: none; margin: 0; padding: 0; }
+    .log > li { padding: 20px 0; border-bottom: 1px solid var(--line); }
+    .log-head { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; gap: 4px 10px; color: var(--text-dim); font-size: 12px; }
+    .log-head .l-task { grid-column: 1; grid-row: 1; min-width: 0; color: var(--text); font: 400 18px/1.3 var(--display); overflow-wrap: anywhere; }
+    .log-head .l-dur { grid-column: 2; grid-row: 1; font-variant-numeric: tabular-nums; white-space: nowrap; }
+    .log-head > span:first-child { grid-column: 1 / -1; grid-row: 2; }
+    .log-outcome { display: flex; align-items: baseline; gap: 8px; margin-top: 9px; color: var(--text-dim); font-size: 12px; }
+    .log-step { display: block; margin: 7px 0 0; color: var(--text-dim); font-size: 12px; overflow-wrap: anywhere; }
+    .log-empty { margin: 19px 0; color: var(--text-dim); font-size: 14px; }
     .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--text-dim); transform: translateY(-1px); }
     .dot--done { background: var(--done); }
     .dot--progress { background: var(--progress); }
@@ -257,7 +264,9 @@
       .now-card { padding-right: 18px; padding-left: 21px; }
       .hero { font-size: 28px; }
       .now-actions .btn--quiet { min-width: 89px; }
-      .figure { padding-right: 9px; padding-left: 9px; }
+      .day { grid-template-columns: 53px minmax(0, 1fr); gap: 9px; }
+      .day-head .d-date { font-size: 16px; }
+      .d-item { grid-template-columns: 33px minmax(0, 1fr) auto; gap: 5px; }
     }
     @media (prefers-reduced-motion: no-preference) {
       .btn, .tab, .iconbtn, .result, .log-month-btn { transition: background-color .15s ease, transform .12s ease; }
@@ -276,9 +285,10 @@
       .log::before { display: block; margin-bottom: 12mm; content: "Registro — " attr(data-month); font-size: 18pt; font-weight: 600; }
       .log > li { break-inside: avoid; margin: 0; padding: 5mm 0; border: 0; border-bottom: 1px solid #ccc; border-radius: 0; background: none; color: #111; }
       .log > li::before, .log-outcome .dot { display: none; }
-      .log-head { display: grid; gap: 1mm; color: #111; font-size: 10pt; }
-      .log-head .l-task { order: 0; flex-basis: auto; color: #111; font-size: 11pt; }
-      .log-head .l-dur { margin: 0; }
+      .log-head { display: grid; grid-template-columns: 1fr; gap: 1mm; color: #111; font-size: 10pt; }
+      .log-head > span:first-child { grid-column: 1; grid-row: 1; }
+      .log-head .l-task { grid-column: 1; grid-row: 2; color: #111; font: 600 11pt/1.4 var(--font); }
+      .log-head .l-dur { grid-column: 1; grid-row: 3; }
       .log-head > span:first-child::before { content: "Fecha: "; }
       .log-head .l-task::before { content: "Tarea: "; }
       .log-head .l-dur::before { content: "Duración: "; }
@@ -1204,42 +1214,45 @@
         return { ds: ds, sessions: sessions, planned: planned };
       });
 
+      var range = days.length === 1 ? 'Esta semana: ' + fmtDayDate(today)
+        : 'Del ' + fmtDayDate(days[0]) + ' al ' + fmtDayDate(today);
+      var html = banner + '<p class="week-range">' + esc(range) + '</p>';
       var hasData = perDay.some(function (d) { return d.sessions.length || d.planned.length; });
       if (!hasData) {
-        return banner + '<div class="empty">' +
+        return html + '<div class="empty">' +
           '<p>Todavía no has trabajado ninguna sesión esta semana.<br>Cuando cierres una, aparecerá aquí por día.</p>' +
           '<button type="button" class="btn btn--quiet" data-action="go" data-view="hoy">Ir a Hoy</button></div>';
       }
 
-      var html = banner + '<div class="week-stack">';
+      html += '<div class="week-stack">';
       perDay.forEach(function (d) {
-        html += '<div class="day' + (d.ds === today ? ' today' : '') + '">' +
-          '<div class="day-head"><span class="d-name">' + esc(fmtDayName(d.ds)) + '</span>' +
+        html += '<section class="day' + (d.ds === today ? ' today' : '') + '">' +
+          '<h2 class="day-head"><span class="d-name">' + esc(fmtDayName(d.ds)) + '</span>' +
           '<span class="d-date">' + esc(fmtDayDate(d.ds)) + '</span>' +
-          (d.sessions.length
-            ? '<span class="d-total">' + esc(fmtDur(Core.sessionsTotalDuration(d.sessions, null))) + '</span>'
-            : '') +
-          '</div>';
-        if (d.sessions.length || d.planned.length) {
-          html += '<ul class="day-items">';
+          (d.ds === today ? '<span class="d-today">Hoy</span>' : '') + '</h2><div class="day-body">';
+        if (d.sessions.length) {
+          html += '<p class="d-total">' + esc(fmtDur(Core.sessionsTotalDuration(d.sessions, null))) + ' registrados</p>' +
+            '<ul class="day-items">';
           d.sessions.forEach(function (x) {
             var t = Core.taskById(STATE, x.taskId);
-            html += '<li class="d-item"><span class="dot dot--' + outcomeKind(x) + '"></span>' +
-              '<span>' + esc(t ? t.title : '(tarea eliminada)') + '</span>' +
+            html += '<li class="d-item"><span class="d-time">' + esc(fmtClock(x.startedAt)) + '</span>' +
+              '<span class="d-task">' + esc(t ? t.title : '(tarea eliminada)') + '</span>' +
               '<span class="d-dur">' + esc(fmtDur(Core.sessionDuration(x, x.endedAt))) + '</span></li>';
           });
-          d.planned.forEach(function (t) {
-            html += '<li class="d-item planned"><span>' + esc(t.nextAction) + '</span>' +
-              '<span class="tag">en el plan</span></li>';
-          });
           html += '</ul>';
-        } else {
+        } else if (!d.planned.length) {
           html += '<p class="day-empty">Sin sesiones</p>';
         }
-        html += '</div>';
+        if (d.planned.length) {
+          html += '<div class="day-plan"><p class="day-plan-label">En el plan de hoy</p><ul class="day-items">';
+          d.planned.forEach(function (t) {
+            html += '<li class="d-item"><span class="d-task">' + esc(t.nextAction) + '</span></li>';
+          });
+          html += '</ul></div>';
+        }
+        html += '</div></section>';
       });
-      html += '</div>';
-      return html;
+      return html + '</div>';
     }
 
     // Progreso: cifras globales y registro acotado por mes y búsqueda
@@ -1248,11 +1261,12 @@
       var log = Core.closedSessions(STATE);
       var html = sessionBanner();
 
-      html += '<div class="panel"><div class="figures">' +
-        '<div class="figure"><strong>' + stats.count + '</strong><span>sesiones</span></div>' +
-        '<div class="figure"><strong>' + esc(fmtDurShort(stats.totalMs)) + '</strong><span>tiempo</span></div>' +
-        '<div class="figure"><strong>' + stats.completedTasks + '</strong><span>tareas hechas</span></div>' +
-      '</div></div>';
+      html += '<section class="panel" aria-label="Resumen de todo el registro">' +
+        '<p class="panel-note">Desde el inicio</p><div class="figures">' +
+        '<div class="figure"><strong>' + stats.count + '</strong><span>Sesiones</span></div>' +
+        '<div class="figure"><strong>' + esc(fmtDurShort(stats.totalMs)) + '</strong><span>Tiempo registrado</span></div>' +
+        '<div class="figure"><strong>' + stats.completedTasks + '</strong><span>Tareas terminadas</span></div>' +
+      '</div></section>';
 
       if (log.length === 0) {
         html += '<div class="empty"><p>Cuando cierres tu primera sesión aparecerá aquí.<br>El registro no se borra nunca.</p></div>';
@@ -1272,11 +1286,12 @@
         return foldSearch([t ? t.title : '', outcomeWord(x), x.nextStep || ''].join(' ')).includes(query);
       });
       html += '<p class="section-label">Registro</p>' +
-        '<div class="log-controls"><input id="log-search" class="log-search" type="search" autocomplete="off" ' +
-          'placeholder="Buscar en el registro" aria-label="Buscar en el registro" value="' + esc(VIEW.logQuery || '') + '">' +
-          '<div class="log-month"><button type="button" class="log-month-btn" data-action="log-prev" aria-label="Mes anterior">‹</button>' +
+        '<div class="log-controls"><div class="log-month">' +
+            '<button type="button" class="log-month-btn" data-action="log-prev" aria-label="Mes anterior">‹</button>' +
             '<span aria-live="polite">' + esc(monthLabel) + '</span>' +
-            '<button type="button" class="log-month-btn" data-action="log-next" aria-label="Mes siguiente">›</button></div></div>' +
+            '<button type="button" class="log-month-btn" data-action="log-next" aria-label="Mes siguiente">›</button></div>' +
+          '<input id="log-search" class="log-search" type="search" autocomplete="off" ' +
+            'placeholder="Buscar en el registro" aria-label="Buscar en el registro" value="' + esc(VIEW.logQuery || '') + '"></div>' +
         '<ul class="log" data-month="' + esc(monthLabel) + '">';
       filtered.forEach(function (x) {
         var t = Core.taskById(STATE, x.taskId);

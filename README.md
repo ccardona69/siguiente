@@ -65,9 +65,9 @@ Navegación inferior de cuatro pestañas:
 
 - **Hoy** — el recorrido de arriba.
 - **Bandeja** — la lista de captura.
-- **Semana** — de lunes a hoy, las sesiones cerradas de cada día y, para hoy,
-  también lo que queda en el plan. Un día sin sesiones se muestra como tal, sin
-  ninguna carga negativa.
+- **Semana** — de lunes a hoy, cada sesión con su hora de inicio y duración;
+  para hoy, el plan aparece separado de lo ya trabajado. Un día sin sesiones
+  se muestra como tal, sin ninguna carga negativa.
 - **Progreso** — número de sesiones, tiempo registrado y tareas terminadas, más el
   **registro** completo (fecha, tarea, duración, resultado y siguiente paso). El
   registro no se borra nunca.
