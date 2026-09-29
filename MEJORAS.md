@@ -56,7 +56,7 @@ regla técnica de cero dependencias. El dueño decide qué pasa a una fase.
 - **Problema**: el README indica añadir la URL al inicio del celular, pero el
   icono resultante es una captura genérica de la página.
 - **Propuesta**: un `manifest.webmanifest` mínimo servido por el Worker (nombre,
-  colores del tema tinta/índigo, icono inline en data-URL) y la etiqueta
+  colores del tema taller/terracota, icono inline en data-URL) y la etiqueta
   correspondiente en `index.html`. Sin service worker: la app sigue sin
   funcionar offline en la URL (como hoy) y no se promete lo que no hay.
 - **Archivos**: `worker.js` (servir el manifest), `public/index.html` (etiqueta).

@@ -653,6 +653,18 @@
     assert(/incorrecto/i.test(r2.error));
   });
 
+  test('importState nunca baja la revisión: una copia antigua restaurada gana a la de la nube', function () {
+    var current = Object.assign(Core.emptyState(), { revision: 9 });
+    var backup = Object.assign(Core.emptyState(), { revision: 2 });
+    var snap = JSON.stringify(current);
+    var r = Core.importState(current, Core.exportState(backup));
+    assert(r.ok === true);
+    assertEqual(r.state.revision, 9, 'conserva la revisión actual');
+    assertEqual(JSON.stringify(current), snap, 'estado actual intacto');
+    var newer = Core.importState(current, Core.exportState(Object.assign(Core.emptyState(), { revision: 12 })));
+    assertEqual(newer.state.revision, 12, 'una revisión mayor del archivo se respeta');
+  });
+
   test('migrate es idempotente y no rompe un estado vacío', function () {
     assertEqual(Core.migrate(Core.emptyState()), Core.emptyState());
     var once = Core.migrate({ schemaVersion: 1, tasks: [], plans: [], planItems: [], sessions: [] });
@@ -854,6 +866,144 @@
     Core.pauseTask(d2.state, { taskId: d2.id });
     Core.rescheduleTask(d2.state, { taskId: d2.id, fromDate: d2.date, toDate: '2026-01-05' }, clock());
     assertEqual(JSON.stringify(d2.state), snap2, 'el estado sembrado sin sesión no cambió');
+  });
+
+  // --- fusión de estados (sincronización a tres vías) ---
+
+  function tarea(id, extra) {
+    return Object.assign({
+      id: id, title: 'Tarea ' + id, outcome: null, nextAction: 'Paso ' + id,
+      status: 'active', dueDate: null, createdAt: ISO, updatedAt: ISO
+    }, extra);
+  }
+  function sesion(id, taskId, extra) {
+    return Object.assign({
+      id: id, taskId: taskId, startedAt: ISO, endedAt: null,
+      pausedAt: null, pausedMs: 0, progress: null, nextStep: null
+    }, extra);
+  }
+  function planDia(id) {
+    return { id: id, date: '2026-01-01', note: null, createdAt: ISO };
+  }
+  function itemPlan(id, planId, taskId, order) {
+    return { id: id, planId: planId, taskId: taskId, order: order };
+  }
+  function estadoCon(extra) {
+    return Object.assign(Core.emptyState(), { revision: 1, savedAt: ISO }, extra);
+  }
+  var MERGED = '2026-02-01T12:00:00.000Z';
+
+  test('mergeStates conserva las tareas y sesiones añadidas en cada dispositivo', function () {
+    var base = estadoCon({});
+    var local = estadoCon({ revision: 2, tasks: [tarea('a')], sessions: [sesion('s1', 'a')] });
+    var remote = estadoCon({ revision: 3, tasks: [tarea('b')], sessions: [sesion('s2', 'b')] });
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true, 'fusión correcta');
+    assertEqual(r.state.tasks.map(function (t) { return t.id; }), ['a', 'b'], 'orden: local y luego remoto');
+    assertEqual(r.state.sessions.map(function (s) { return s.id; }), ['s1', 's2'], 'ninguna sesión se pierde');
+    assertEqual(r.state.savedAt, MERGED);
+  });
+
+  test('mergeStates combina campos distintos de una misma tarea', function () {
+    var base = estadoCon({ tasks: [tarea('a')] });
+    var local = estadoCon({ revision: 2, savedAt: '2026-01-02T00:00:00.000Z',
+      tasks: [tarea('a', { outcome: 'Informe listo' })] });
+    var remote = estadoCon({ revision: 2, savedAt: '2026-01-03T00:00:00.000Z',
+      tasks: [tarea('a', { nextAction: 'Revisar el borrador' })] });
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true);
+    var t = Core.taskById(r.state, 'a');
+    assertEqual(t.outcome, 'Informe listo', 'campo que solo cambió el local');
+    assertEqual(t.nextAction, 'Revisar el borrador', 'campo que solo cambió el remoto');
+  });
+
+  test('mergeStates en un mismo campo gana el savedAt más reciente y en empate el remoto', function () {
+    var base = estadoCon({ tasks: [tarea('a', { nextAction: 'Original' })] });
+    var antes = '2026-01-02T00:00:00.000Z';
+    var despues = '2026-01-03T00:00:00.000Z';
+    var local = estadoCon({ savedAt: despues, tasks: [tarea('a', { nextAction: 'Local' })] });
+    var remote = estadoCon({ savedAt: antes, tasks: [tarea('a', { nextAction: 'Remoto' })] });
+    var r1 = Core.mergeStates(base, local, remote, MERGED);
+    assertEqual(Core.taskById(r1.state, 'a').nextAction, 'Local', 'gana el savedAt más reciente');
+    var local2 = estadoCon({ savedAt: antes, tasks: [tarea('a', { nextAction: 'Local' })] });
+    var remote2 = estadoCon({ savedAt: antes, tasks: [tarea('a', { nextAction: 'Remoto' })] });
+    var r2 = Core.mergeStates(base, local2, remote2, MERGED);
+    assertEqual(Core.taskById(r2.state, 'a').nextAction, 'Remoto', 'en empate gana el remoto');
+  });
+
+  test('mergeStates respeta el borrado hecho en un solo dispositivo', function () {
+    var base = estadoCon({ tasks: [tarea('a'), tarea('b')] });
+    var local = estadoCon({ revision: 2, tasks: [tarea('a')] });
+    var remote = estadoCon({ tasks: [tarea('a'), tarea('b')] });
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true);
+    assertEqual(r.state.tasks.map(function (t) { return t.id; }), ['a'], 'b queda borrada');
+  });
+
+  test('mergeStates conserva la entidad modificada frente a un borrado en el otro lado', function () {
+    var base = estadoCon({ tasks: [tarea('a'), tarea('b')] });
+    var local = estadoCon({ revision: 2, tasks: [tarea('a')] });
+    var remote = estadoCon({ revision: 2, tasks: [tarea('a'), tarea('b', { nextAction: 'Cambiado' })] });
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true);
+    var t = Core.taskById(r.state, 'b');
+    assert(t !== null, 'la tarea modificada se conserva');
+    assertEqual(t.nextAction, 'Cambiado');
+  });
+
+  test('mergeStates sin base conserva entidades de un lado y resuelve campos por savedAt', function () {
+    var local = estadoCon({ savedAt: '2026-01-02T00:00:00.000Z',
+      tasks: [tarea('a', { nextAction: 'Del local' })] });
+    var remote = estadoCon({ savedAt: '2026-01-03T00:00:00.000Z',
+      tasks: [tarea('a', { nextAction: 'Del remoto' }), tarea('b')] });
+    var r = Core.mergeStates(null, local, remote, MERGED);
+    assert(r.ok === true);
+    assertEqual(Core.taskById(r.state, 'a').nextAction, 'Del remoto', 'el remoto tiene savedAt posterior');
+    assert(Core.taskById(r.state, 'b') !== null, 'la tarea solo-remota se conserva');
+  });
+
+  test('mergeStates limpia planItems: referencias muertas, duplicados y numeración', function () {
+    var base = estadoCon({});
+    var local = estadoCon({
+      revision: 2,
+      tasks: [tarea('a'), tarea('b', { status: 'done' }), tarea('c')],
+      plans: [planDia('p1')],
+      planItems: [
+        itemPlan('i1', 'p1', 'a', 2),
+        itemPlan('i2', 'p1', 'fantasma', 0),
+        itemPlan('i3', 'p1', 'b', 1),
+        itemPlan('i4', 'px', 'a', 0),
+        itemPlan('i5', 'p1', 'a', 0),
+        itemPlan('i6', 'p1', 'c', 2)
+      ]
+    });
+    var remote = estadoCon({});
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true);
+    assertEqual(r.state.planItems.map(function (i) { return i.id; }), ['i1', 'i6'],
+      'fuera referencias a plan/tarea inexistentes, tarea hecha y el (planId, taskId) repetido');
+    assertEqual(r.state.planItems[0].order, 0, 'renumerado desde 0');
+    assertEqual(r.state.planItems[1].order, 1);
+  });
+
+  test('mergeStates no muta las entradas y fija la revisión en el máximo + 1', function () {
+    var base = estadoCon({ tasks: [tarea('a')] });
+    var local = estadoCon({ revision: 4, tasks: [tarea('a', { outcome: 'x' })] });
+    var remote = estadoCon({ revision: 7, tasks: [tarea('a'), tarea('b')] });
+    var snap = [base, local, remote].map(function (s) { return JSON.stringify(s); });
+    var r = Core.mergeStates(base, local, remote, MERGED);
+    assert(r.ok === true);
+    assertEqual(r.state.revision, 8, 'max(4, 7) + 1');
+    [base, local, remote].forEach(function (s, i) {
+      assertEqual(JSON.stringify(s), snap[i], 'entrada ' + i + ' intacta');
+    });
+  });
+
+  test('mergeStates devuelve error ante un estado inválido', function () {
+    var good = estadoCon({ tasks: [tarea('a')] });
+    assert(Core.mergeStates(null, 'no es un estado', good, MERGED).ok === false, 'local inválido');
+    assert(Core.mergeStates(null, good, { tasks: [{ id: '' }] }, MERGED).ok === false, 'remoto inválido');
+    assert(Core.mergeStates({ savedAt: 5 }, good, good, MERGED).ok === false, 'base inválida');
   });
 
   // --- ejecución y salida ---

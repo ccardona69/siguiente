@@ -486,6 +486,10 @@
     var migrated = migrate(parsed);
     var v = validateState(migrated);
     if (!v.ok) return err(v.error);
+    // la revisión nunca baja: una copia antigua restaurada debe ganar a lo que ya hay en los demás equipos
+    if (state && typeof state.revision === 'number' && state.revision > migrated.revision) {
+      migrated.revision = state.revision;
+    }
     return ok(migrated);
   }
 
@@ -598,6 +602,202 @@
     }, 0);
   }
 
+  // --- fusión de estados a tres vías (sincronización) ---
+
+  // igualdad profunda de valores planos: el orden de las claves no cuenta
+  function deepEq(a, b) {
+    if (a === b) return true;
+    if (!a || !b || typeof a !== 'object' || typeof b !== 'object') return false;
+    if (Array.isArray(a) !== Array.isArray(b)) return false;
+    var i;
+    if (Array.isArray(a)) {
+      if (a.length !== b.length) return false;
+      for (i = 0; i < a.length; i++) {
+        if (!deepEq(a[i], b[i])) return false;
+      }
+      return true;
+    }
+    var ka = Object.keys(a);
+    var kb = Object.keys(b);
+    if (ka.length !== kb.length) return false;
+    for (i = 0; i < ka.length; i++) {
+      if (!Object.prototype.hasOwnProperty.call(b, ka[i]) || !deepEq(a[ka[i]], b[ka[i]])) return false;
+    }
+    return true;
+  }
+
+  // estado migrado y validado, o null si no es usable
+  function checkedState(value) {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+    var m = migrate(value);
+    return validateState(m).ok ? m : null;
+  }
+
+  // lado que resuelve los conflictos de una fusión: el savedAt más reciente; en empate, el remoto
+  function winnerSide(localState, remoteState) {
+    var l = localState && typeof localState.savedAt === 'string' ? toMs(localState.savedAt) : NaN;
+    var r = remoteState && typeof remoteState.savedAt === 'string' ? toMs(remoteState.savedAt) : NaN;
+    if (isNaN(l)) l = -Infinity;
+    if (isNaN(r)) r = -Infinity;
+    return l > r ? 'local' : 'remote';
+  }
+
+  // presencia y valor de una propiedad: distinguir "ausente" de "presente con undefined"
+  function slotOf(entity, key) {
+    if (entity && Object.prototype.hasOwnProperty.call(entity, key)) {
+      return { has: true, value: entity[key] };
+    }
+    return { has: false, value: undefined };
+  }
+
+  function sameSlot(a, b) {
+    return a.has === b.has && (!a.has || deepEq(a.value, b.value));
+  }
+
+  // fusión campo a campo de dos versiones de una misma entidad (baseEnt puede ser null):
+  // la regla a tres vías decide por campo y, cuando ambos lados cambiaron el mismo campo
+  // de forma distinta, todos esos valores salen del estado con savedAt más reciente
+  function mergeFields(baseEnt, localEnt, remoteEnt, localState, remoteState) {
+    var keys = {};
+    [baseEnt, localEnt, remoteEnt].forEach(function (e) {
+      if (e) {
+        Object.keys(e).forEach(function (k) { keys[k] = true; });
+      }
+    });
+    var pickLocal = winnerSide(localState, remoteState) === 'local';
+    var out = {};
+    Object.keys(keys).forEach(function (k) {
+      var bs = slotOf(baseEnt, k);
+      var ls = slotOf(localEnt, k);
+      var rs = slotOf(remoteEnt, k);
+      var chosen;
+      if (baseEnt) {
+        if (sameSlot(ls, bs)) chosen = rs;
+        else if (sameSlot(rs, bs)) chosen = ls;
+        else if (sameSlot(ls, rs)) chosen = ls;
+        else chosen = pickLocal ? ls : rs;
+      } else {
+        if (sameSlot(ls, rs)) chosen = ls;
+        else if (!ls.has) chosen = rs;
+        else if (!rs.has) chosen = ls;
+        else chosen = pickLocal ? ls : rs;
+      }
+      if (chosen.has) out[k] = clone(chosen.value);
+    });
+    return out;
+  }
+
+  // fusión de una entidad concreta: null significa "borrada/ausente" en ese lado
+  function mergeEntity(baseEnt, localEnt, remoteEnt, localState, remoteState) {
+    var hasLocal = !!localEnt;
+    var hasRemote = !!remoteEnt;
+    if (hasLocal && hasRemote && deepEq(localEnt, remoteEnt)) return localEnt;
+    if (baseEnt) {
+      var localSame = hasLocal && deepEq(localEnt, baseEnt);
+      var remoteSame = hasRemote && deepEq(remoteEnt, baseEnt);
+      if (localSame) return remoteEnt;   // el local no la tocó: manda el remoto, incluido su borrado
+      if (remoteSame) return localEnt;   // y al revés
+      if (!hasLocal) return remoteEnt;   // borrada en un lado y modificada en el otro: se conserva la versión viva
+      if (!hasRemote) return localEnt;
+      return mergeFields(baseEnt, localEnt, remoteEnt, localState, remoteState);
+    }
+    if (!hasLocal) return remoteEnt;
+    if (!hasRemote) return localEnt;
+    return mergeFields(null, localEnt, remoteEnt, localState, remoteState);
+  }
+
+  // fusión de una colección por id: primero los ids de la base, luego los solo-locales
+  // y al final los solo-remotos; cada id aparece una sola vez
+  function mergeCollection(baseList, localList, remoteList, localState, remoteState) {
+    function indexOf(list) {
+      var map = {};
+      (list || []).forEach(function (e) {
+        if (e && typeof e.id === 'string' && !Object.prototype.hasOwnProperty.call(map, e.id)) {
+          map[e.id] = e;
+        }
+      });
+      return map;
+    }
+    var bm = indexOf(baseList);
+    var lm = indexOf(localList);
+    var rm = indexOf(remoteList);
+    var seen = {};
+    var order = [];
+    [baseList, localList, remoteList].forEach(function (list) {
+      (list || []).forEach(function (e) {
+        var id = e && e.id;
+        if (typeof id === 'string' && !seen[id]) {
+          seen[id] = true;
+          order.push(id);
+        }
+      });
+    });
+    var out = [];
+    order.forEach(function (id) {
+      var merged = mergeEntity(bm[id] || null, lm[id] || null, rm[id] || null, localState, remoteState);
+      if (merged) out.push(typeof merged === 'object' ? clone(merged) : merged);
+    });
+    return out;
+  }
+
+  // tras la fusión los items deben seguir siendo coherentes: fuera los que apuntan a un plan
+  // o tarea inexistente o a una tarea terminada, un solo item por (planId, taskId) quedándose
+  // con el primero del orden fusionado, y order renumerado 0..n-1 por plan usando como
+  // desempate la posición que cada item tenía en la lista fusionada
+  function normalizePlanItems(state) {
+    var plans = {};
+    state.plans.forEach(function (p) { plans[p.id] = true; });
+    var tasks = {};
+    state.tasks.forEach(function (t) { tasks[t.id] = t; });
+    var seenPair = {};
+    var kept = [];
+    state.planItems.forEach(function (it) {
+      var t = tasks[it.taskId];
+      if (!plans[it.planId] || !t || t.status === 'done') return;
+      var pair = it.planId + '|' + it.taskId;
+      if (seenPair[pair]) return;
+      seenPair[pair] = true;
+      kept.push(it);
+    });
+    var byPlan = {};
+    kept.forEach(function (it, pos) {
+      if (!byPlan[it.planId]) byPlan[it.planId] = [];
+      byPlan[it.planId].push({ item: it, pos: pos });
+    });
+    Object.keys(byPlan).forEach(function (planId) {
+      byPlan[planId].slice().sort(function (a, b) {
+        return (a.item.order - b.item.order) || (a.pos - b.pos);
+      }).forEach(function (entry, idx) {
+        kept[entry.pos] = Object.assign({}, entry.item, { order: idx });
+      });
+    });
+    state.planItems = kept;
+  }
+
+  // fusión automática de dos copias del estado contra su ancestro común (base, o null si no
+  // se conoce): devuelve el estado fusionado normal o un error; nunca muta las entradas
+  function mergeStates(base, local, remote, mergedAt) {
+    var b = base == null ? null : checkedState(base);
+    if (base != null && !b) return err('El estado base no es válido.');
+    var l = checkedState(local);
+    if (!l) return err('El estado local no es válido.');
+    var r = checkedState(remote);
+    if (!r) return err('El estado remoto no es válido.');
+    var state = {
+      schemaVersion: SCHEMA_VERSION,
+      revision: Math.max(l.revision, r.revision) + 1,
+      savedAt: mergedAt,
+      tasks: mergeCollection(b && b.tasks, l.tasks, r.tasks, l, r),
+      plans: mergeCollection(b && b.plans, l.plans, r.plans, l, r),
+      planItems: mergeCollection(b && b.planItems, l.planItems, r.planItems, l, r),
+      sessions: mergeCollection(b && b.sessions, l.sessions, r.sessions, l, r)
+    };
+    normalizePlanItems(state);
+    var v = validateState(state);
+    if (!v.ok) return err(v.error);
+    return ok(state);
+  }
+
   // objeto público único
   var SiguienteCore = {
     SCHEMA_VERSION: SCHEMA_VERSION,
@@ -620,6 +820,7 @@
     exportState: exportState,
     validateState: validateState,
     importState: importState,
+    mergeStates: mergeStates,
     inbox: inbox,
     todayPlan: todayPlan,
     openSession: openSession,

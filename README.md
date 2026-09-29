@@ -32,7 +32,8 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 - **En la URL publicada**: además se sincronizan con tu espacio en la nube. Si un
   guardado remoto falla, el cambio queda en el equipo y se reintenta luego; el
   indicador de la cabecera lo dice ("Sincronizado" / "Guardado solo en este
-  equipo").
+  equipo"). Editar en dos equipos a la vez no pierde datos: los estados se
+  fusionan automáticamente (ver **Modelo de datos**).
 
 ### Recorrido
 
@@ -52,7 +53,7 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
    otro día…** (reprogramar su fecha de trabajo, sin tocar su fecha límite).
 4. **Sesión.** "Empezar" abre una sesión: acción, hora de inicio y tiempo
    transcurrido, que **cuenta hacia arriba** y se recalcula solo con las marcas de
-   tiempo. El anillo da una vuelta por hora: es solo señal de que el tiempo corre,
+   tiempo. Una marca recorre la línea bajo el tiempo una vez por hora: es solo señal de que el tiempo corre,
    no una cuenta atrás ni un objetivo. "Listo" pregunta solo «¿Avanzaste?»:
    «Sí» o «No» cierran la sesión y conservan la siguiente acción. Para terminar
    la tarea o cambiar esa acción, usa «Ajustar» desde Hoy.
@@ -61,7 +62,7 @@ Abre `public/index.html` con doble clic, o entra a la URL publicada (ver
 
 ### Secciones
 
-Navegación inferior de cuatro pestañas:
+Navegación inferior de cuatro pestañas, pegada al borde y solo con texto:
 
 - **Hoy** — el recorrido de arriba.
 - **Bandeja** — la lista de captura.
@@ -91,11 +92,13 @@ El indicador junto al menú muestra el estado del guardado. En `file://`:
 siguiente/
 ├── public/            # lo único que se sirve como estático
 │   ├── index.html     # interfaz: vistas, estilos (tema oscuro) y adaptadores de almacenamiento
+│   ├── _headers       # cabeceras de seguridad de los estáticos (las aplica Cloudflare)
 │   ├── core.js        # dominio, casos de uso y serialización; sin DOM y sin reloj propio
 │   ├── tests.js       # pruebas del núcleo y mini-runner (Node y navegador)
 │   └── tests.html     # runner de pruebas en el navegador
 ├── worker.js          # Cloudflare Worker: sirve public/ y expone /api/state (sincronización)
-├── wrangler.jsonc     # config de Cloudflare Workers (Worker + estáticos + KV)
+├── worker.tests.js    # pruebas del Worker con un KV simulado (solo Node)
+├── wrangler.jsonc     # config de Cloudflare Workers (Worker + estáticos + KV + registros)
 ├── README.md
 └── CLAUDE.md          # reglas permanentes del proyecto
 ```
@@ -105,6 +108,9 @@ siguiente/
 - **Node:** `node public/tests.js` — imprime los resultados y termina con código 1
   si algo falla.
 - **Navegador:** abre `public/tests.html` con doble clic; pinta verde o rojo.
+- **Worker:** `node worker.tests.js` — prueba `/api/state` (token, límites,
+  validación, blob ilegible, fallos de KV, copias diarias, cabeceras y registros)
+  contra un KV simulado.
 
 Las pruebas inyectan un reloj falso, así que casos como "una sesión de 72 horas"
 son deterministas.
@@ -124,8 +130,8 @@ Desde `C:\Users\dav\siguiente`:
 1. `npx wrangler login` — se abre el navegador para autorizar. En PowerShell, si
    `npx` no carga, usa `npx.cmd`.
 2. `npx wrangler kv namespace create SIGUIENTE_KV` — crea el almacén e imprime un
-   `id`. Pégalo en `wrangler.jsonc`, en `kv_namespaces[0].id`, sustituyendo
-   `REEMPLAZA_CON_EL_ID_DEL_NAMESPACE_KV`.
+   `id`. Pégalo en `wrangler.jsonc`, en `kv_namespaces[0].id`. Este repositorio ya
+   trae el `id` de su almacén; solo repite este paso si despliegas en otra cuenta.
 3. *(Opcional, recomendado si la URL es pública)* `npx wrangler secret put SYNC_TOKEN`
    y escribe una frase larga. Con eso, `/api/state` exige `Authorization: Bearer
    <token>`. En la app, abre **Menú → Sincronización**, pega el token y pulsa
@@ -138,6 +144,44 @@ Desde `C:\Users\dav\siguiente`:
 
 Sin conexión, la URL no carga; en la PC, `public/index.html` sí funciona offline
 y guarda en local.
+
+El Worker escribe una línea JSON por petición a la API (evento, código, tamaño y
+revisión; nunca el token ni el contenido). Se ven en el panel de Cloudflare →
+Workers → siguiente → Observability, o con `npx wrangler tail`. Si el almacén KV
+falla, la API responde 503 con un JSON descriptivo y la app sigue guardando en local.
+Si el estado de la nube no tiene la estructura válida, la app lo ignora y conserva
+la copia local en lugar de cargarlo.
+
+### Copias diarias y restauración
+
+Antes del primer guardado de cada día (UTC), el Worker guarda en KV el estado que
+había, con el nombre `backup.AAAA-MM-DD`; KV las borra solas a los 30 días. Es la
+foto del estado anterior a ese día: sirve para recuperar un "Borrar todo" o un
+error que ya se sincronizó. Lo que se hizo durante el mismo día antes del error no
+queda en la copia.
+
+Para restaurar, desde `C:\Users\dav\siguiente` en PowerShell:
+
+1. `npx wrangler kv key list --binding SIGUIENTE_KV --prefix backup. --remote` —
+   lista las copias disponibles.
+2. `npx wrangler kv key get backup.2026-09-27 --binding SIGUIENTE_KV --remote --text | Out-File -Encoding utf8 restaurar.json`
+   — descarga la elegida. Usa `Out-File`, no `>`: en PowerShell `>` guarda en UTF-16.
+   Abre `restaurar.json` y comprueba que es un JSON y no el texto `Value not found`.
+3. En la app: **Menú → Importar** y elige `restaurar.json`. Al importar, la
+   revisión nunca baja, así que lo restaurado gana sobre el estado vacío o dañado
+   que haya en los demás dispositivos y se sincroniza con ellos.
+
+Importar reemplaza todo el estado actual; si dudas, primero usa **Menú → Exportar**.
+
+### Cabeceras de seguridad
+
+`public/_headers` añade a todos los archivos estáticos `X-Content-Type-Options`,
+`X-Frame-Options`, `Referrer-Policy` y una `Content-Security-Policy` cerrada por
+defecto: solo scripts y estilos propios, sincronización solo al mismo origen y sin
+marcos ni formularios. Permite `'unsafe-inline'` en scripts y estilos porque
+`index.html` los lleva en línea; eso limita la protección frente a XSS, pero
+`connect-src 'self'` impide que un script inyectado envíe datos a otro sitio.
+`file://` no se ve afectado: esas cabeceras solo las aplica Cloudflare.
 
 ## Modelo de datos
 
@@ -152,9 +196,24 @@ Estado completo: `schemaVersion` (1), `revision` (sube en cada guardado),
 - **WorkSession**: `id`, `taskId`, `startedAt`, `endedAt` (null mientras está
   abierta), `progress` (`yes` | `some` | `no` | null), `nextStep`.
 
-La sincronización usa `revision`: al cargar, si la copia local va por delante de
-la remota, se sube; si no, manda la remota. No hay fusión fina, así que editar sin
-conexión en dos dispositivos a la vez puede perder el cambio más antiguo.
+La sincronización fusiona sola: cada equipo guarda una copia base
+(`siguiente.syncbase.v1` en localStorage) con el último estado que confirmó
+sincronizado con la nube. Al cargar y al guardar se hace una **fusión a tres
+vías** (base, local, remoto) por entidad y por campo: lo que cambió en un solo
+lado se conserva, un borrado se respeta si el otro lado no tocó la entidad, y un
+borrado frente a una modificación conserva la versión modificada. Si los dos
+lados cambiaron el mismo campo de forma distinta, gana el estado con `savedAt`
+más reciente; en empate, el remoto. Si solo cambió un lado respecto a la base,
+se conserva ese lado entero sin crear una revisión de fusión innecesaria.
+
+`GET /api/state` devuelve `ETag: "<revisión>"` (o `"empty"` si la nube está
+vacía) y `PUT` admite la precondición `If-Match` con ese valor. Si la revisión
+ya no es la esperada, responde `409` con el estado vigente y la app fusiona y
+reintenta (hasta 3 veces). Un equipo que arrancó sin conexión hace un `GET` de
+sondeo antes de su primera subida, así nunca escribe a ciegas sin `If-Match`.
+La comparación es de **mejor esfuerzo**: Workers KV
+es eventualmente consistente y no ofrece compare-and-swap atómico, así que el
+`409` cubre el caso común de sobrescritura sin garantizarlo de forma absoluta.
 
 ## API del núcleo (`SiguienteCore`)
 
@@ -163,7 +222,8 @@ Cada caso de uso recibe `(estado, datos, now)` y devuelve `{ ok: true, state }` 
 
 - Casos de uso: `captureTask`, `defineTask`, `chooseForToday`, `moveToFirst`,
   `removeFromToday`, `pauseTask`, `rescheduleTask`, `startSession`, `pauseSession`,
-  `resumeSession`, `closeSession`, `markTaskDone`, `validateState`, `importState`.
+  `resumeSession`, `closeSession`, `markTaskDone`, `validateState`, `importState`,
+  `mergeStates(base, local, remote, mergedAt)` (fusión a tres vías).
 - Sin envoltura: `emptyState`, `migrate`, `stampSave`, `exportState`, `uid`.
 - Consultas: `inbox`, `todayPlan(date)`, `openSession`, `firstActionOf(date)`,
   `sessionDuration(session, now)`, `taskById(id)`, `closedSessions`,

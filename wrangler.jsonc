@@ -12,7 +12,9 @@
   "kv_namespaces": [
     // Creado con:  npx wrangler kv namespace create SIGUIENTE_KV
     { "binding": "SIGUIENTE_KV", "id": "deace42306cf4300ac7f4bb578ad3d80" }
-  ]
+  ],
+  // Registros del Worker en el panel de Cloudflare (una línea JSON por petición, sin token ni datos)
+  "observability": { "enabled": true }
   // Token de acceso opcional (recomendado si la URL es pública):
   //   npx wrangler secret put SYNC_TOKEN
   // Se configura en Menú → Sincronización y solo se envía por Authorization.
