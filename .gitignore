@@ -15,5 +15,8 @@ siguiente.json
 .wrangler/
 node_modules/
 
+# Páginas de QA generadas por tests/make-qa-pages.py
+.qa/
+
 # Material de trabajo, no del producto
 bocetos/

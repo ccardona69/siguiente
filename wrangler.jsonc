@@ -1,5 +1,6 @@
 // Worker de "Siguiente": sirve public/ como estáticos y expone /api/state para sincronizar.
-// El estado se guarda como un blob JSON en KV. Sigue sin build, sin dependencias y sin npm install.
+// El estado se guarda como un blob JSON en KV. Sin dependencias ni npm install;
+// public/index.html se genera con "python build.py" desde src/.
 {
   "name": "siguiente",
   "compatibility_date": "2026-09-08",
