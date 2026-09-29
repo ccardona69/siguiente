@@ -80,8 +80,8 @@
     .capture::placeholder, .field input::placeholder, .log-search::placeholder { color: var(--text-dim); opacity: 1; }
     .capture:focus, .field input:focus, .log-search:focus { border-color: var(--line-strong); }
     .capture-add {
-      position: absolute; top: 5px; right: 5px;
-      display: grid; place-items: center; width: 42px; height: 42px;
+      position: absolute; top: 4px; right: 4px;
+      display: grid; place-items: center; width: 44px; height: 44px;
       border: 0; border-radius: 7px; background: var(--accent); color: var(--accent-ink);
       font-size: 23px; opacity: 0; pointer-events: none;
     }
@@ -95,6 +95,7 @@
       font: 650 15px/1.25 var(--font); letter-spacing: .005em; text-align: center; cursor: pointer;
     }
     .btn-arrow { font-size: 20px; font-weight: 400; line-height: 1; }
+    .btn-play { display: block; flex: none; width: 20px; height: 20px; }
     .btn--primary { background: var(--accent); color: var(--accent-ink); }
     .btn--primary:hover { background: #ED8952; }
     .btn--quiet { border-color: var(--line-strong); background: var(--surface); color: var(--text); }
@@ -103,11 +104,12 @@
     .btn--light:hover { background: #DED6C9; }
     .btn--text { width: auto; min-height: 46px; padding-left: 0; background: transparent; color: var(--text-dim); font-weight: 500; }
     .btn--text:hover { color: var(--text); }
-    .btn--small { width: auto; min-height: 43px; padding: 9px 14px; font-size: 13px; }
+    .btn--small { width: auto; min-height: 44px; padding: 9px 14px; font-size: 13px; }
     .stack { display: flex; flex-direction: column; gap: 10px; margin-top: 26px; }
     .stack .btn { justify-content: space-between; text-align: left; }
     .stack .link { align-self: flex-start; margin-top: 4px; }
     .link {
+      display: inline-flex; align-items: center; min-width: 44px; min-height: 44px;
       border: 0; background: transparent; color: var(--text-dim);
       font: 500 13px/1.4 var(--font); text-decoration: underline;
       text-decoration-color: rgba(168, 158, 146, .5); text-underline-offset: 4px;
@@ -1071,6 +1073,7 @@
 
     // ---------- iconos: solo los dos del botón de menú; la navegación inferior es texto ----------
     var BRAND_ICON = '<svg class="brand-icon" viewBox="0 0 120 120" aria-hidden="true"><g><g><path fill="#232323" d="M33.4,55.7V43.5h39.4v12.2c0,2.1-9.9,7.1-19.8,7.1S33.4,57.8,33.4,55.7z"/><g><path fill="#FFFCF1" d="M29.9,74.1h49.4V58.4H29.9c-4.3,0-7.8,3.4-7.8,7.8l0,0C22.2,70.5,25.6,74.1,29.9,74.1z"/><path fill="#64E291" d="M29.7,76.3c-5.6,0-10.1-4.5-10.1-10.1c0-5.6,4.5-10.1,10.1-10.1h49.5c1.1,0,2.1,1,2.1,2.1c0,1.1-1,2.1-2.1,2.1H29.7c-3.2,0-5.7,2.6-5.7,5.7s2.6,5.7,5.7,5.7h49.5c1.1,0,2.1,1,2.1,2.1c0,1.1-1,2.1-2.1,2.1H29.7V76.3z"/><polygon fill="#FFCA3B" points="39.2,69.4 35.4,66.8 31.7,69.4 31.7,60.6 39.2,60.6"/><path fill="#FFFCF1" d="M29.9,94.1h49.4V78.5H29.9c-4.3,0-7.8,3.4-7.8,7.8l0,0C22.2,90.5,25.6,94.1,29.9,94.1z"/><path fill="#64A1FF" d="M29.7,96.4c-5.6,0-10.1-4.5-10.1-10.1s4.5-10.1,10.1-10.1h49.5c1.1,0,2.1,1,2.1,2.1s-1,2.1-2.1,2.1H29.7c-3.2,0-5.7,2.6-5.7,5.7s2.6,5.7,5.7,5.7h49.5c1.1,0,2.1,1,2.1,2.1s-1,2.1-2.1,2.1C79.2,96.4,29.7,96.4,29.7,96.4z"/><polygon fill="#FFCA3B" points="74.7,89.3 71,86.8 67.3,89.3 67.3,80.7 74.7,80.7"/></g><path fill="#3D3D3D" d="M17.2,38.2l35.4,11.7c0.4,0.2,0.8,0.2,1.1,0L89,38.2c1.6-0.5,1.6-2.8,0-3.4L53.8,23.7c-0.3-0.1-0.7-0.1-1.1,0L17.4,34.8C15.7,35.4,15.6,37.6,17.2,38.2z"/><g><path fill="#FFC91D" d="M80.6,50.9c0.5,0,1-0.4,1-1v-8.9c0-0.4-0.4-0.9-0.9-1L53.2,36c-0.5-0.1-1,0.3-1.1,0.9c-0.1,0.5,0.3,1,0.9,1.1l26.5,3.9v8.1C79.5,50.5,80,50.9,80.6,50.9z"/></g><path fill="#FFC91D" d="M82.4,58.1h-3.4c-0.7,0-1.2-0.7-1-1.3l1.5-5.4h2.3l1.5,5.4C83.6,57.4,83.1,58.1,82.4,58.1z"/><ellipse fill="#EDB61D" cx="53.1" cy="36.8" rx="3.4" ry="1.9"/><circle fill="#EDB61D" cx="80.5" cy="50.9" r="2.4"/></g><g><path fill="#FFF1E1" d="M103.3,69c1.5,4.2,0.5,8.3-2,9.2L54.1,94.6c-2.6,0.9-5.8-1.7-7.3-5.9c-1.5-4.2-0.5-8.3,2-9.2L95.9,63C98.6,62.2,101.8,64.9,103.3,69z"/><path fill="#F87474" d="M85.8,75.1c1.5,4.2,0.5,8.3-2,9.2l-9,3.1c2.6-0.9,3.5-5.1,2-9.2c-1.5-4.2-4.7-6.9-7.3-5.9l9-3.1C81.1,68.2,84.4,70.9,85.8,75.1z"/><ellipse fill="#EDDFD1" cx="51.4" cy="87.1" rx="5" ry="8" transform="matrix(0.9444 -0.3289 0.3289 0.9444 -25.7739 21.7618)"/><polygon fill="#E26D6D" points="85.7,92.1 79.6,90.5 75.8,95.5 73.2,88 83.1,84.6"/></g></g></svg>';
+    var PLAY_ICON = '<svg class="btn-play" viewBox="0 0 512 512" aria-hidden="true"><g><g><linearGradient gradientUnits="userSpaceOnUse" id="playg1" x1="0" x2="512" y1="256" y2="256"><stop offset="0" style="stop-color:#33B49D"/><stop offset="1" style="stop-color:#00A185"/></linearGradient><circle cx="256" cy="256" fill="url(#playg1)" r="256"/><linearGradient gradientUnits="userSpaceOnUse" id="playg2" x1="42.6666679" x2="469.3333435" y1="256.0005188" y2="256.0005188"><stop offset="0" style="stop-color:#00A185"/><stop offset="1" style="stop-color:#33B49D"/></linearGradient><path d="M256,469.3338623c-117.6309357,0-213.3333282-95.7018738-213.3333282-213.3333435c0-117.6309204,95.7023926-213.333313,213.3333282-213.333313c117.636261,0,213.3333435,95.7024002,213.3333435,213.333313C469.3333435,373.6319885,373.636261,469.3338623,256,469.3338623z" fill="url(#playg2)"/></g><polygon opacity="0.3" points="358.4709167,264 169.5296021,384 169.5296021,144"/><polygon fill="#FFFFFF" points="350.4709167,256 161.5296021,376 161.5296021,136"/></g></svg>';
     var ICON = {
       menu: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="currentColor" stroke="none"><circle cx="4.5" cy="10" r="1.4"/><circle cx="10" cy="10" r="1.4"/><circle cx="15.5" cy="10" r="1.4"/></svg>',
       close: '<svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9"/></svg>'
@@ -1139,7 +1142,7 @@
       return '<div class="capture-form">' +
         '<input id="capture" class="capture" type="text" autocomplete="off" ' +
         'placeholder="Anota algo que tienes en mente…" aria-label="Nombre de la tarea">' +
-        '<button type="button" class="capture-add" data-action="capture-add" aria-label="Añadir tarea">↗</button>' +
+        '<button type="button" class="capture-add" data-action="capture-add" aria-label="Añadir tarea" aria-hidden="true" disabled>↗</button>' +
         '</div>';
     }
 
@@ -1191,9 +1194,9 @@
       if (plan.length === 0) {
         return sessionBanner() +
           '<section class="empty-state">' +
-            '<span class="empty-index">01 / HOY</span>' +
+            '<span class="empty-index">SIN TAREA ELEGIDA</span>' +
             '<h2>Un paso a la vez.</h2>' +
-            '<p>No has elegido nada para hoy. Encuentra una tarea en tu bandeja o anota algo nuevo arriba.</p>' +
+            '<p>Elige una tarea de tu bandeja o anota algo nuevo arriba.</p>' +
             '<button type="button" class="btn btn--quiet" data-action="go" data-view="bandeja">Ver la bandeja <span class="btn-arrow">↗</span></button>' +
           '</section>';
       }
@@ -1208,7 +1211,7 @@
         html += '<p class="for-outcome"><strong>Para:</strong> ' + esc(first.task.outcome) + '</p>';
       }
       html += '<div class="now-actions">' +
-        '<button type="button" class="btn btn--primary" data-action="start" data-id="' + esc(first.task.id) + '">Empezar <span class="btn-arrow">↗</span></button>' +
+        '<button type="button" class="btn btn--primary" data-action="start" data-id="' + esc(first.task.id) + '">Empezar ' + PLAY_ICON + '</button>' +
         '<button type="button" class="btn btn--text" data-action="adjust" data-id="' + esc(first.task.id) + '">Ajustar esta tarea</button>' +
       '</div></section>';
       if (rest.length) {
@@ -1580,10 +1583,16 @@
       if (cap) {
         var add = document.querySelector('.capture-add');
         cap.addEventListener('input', function () {
-          if (add) add.classList.toggle('visible', !!cap.value);
+          if (!add) return;
+          var hasTitle = !!cap.value.trim();
+          add.disabled = !hasTitle;
+          add.setAttribute('aria-hidden', String(!hasTitle));
+          add.classList.toggle('visible', hasTitle);
         });
         cap.addEventListener('keydown', function (e) {
           if (e.key !== 'Enter') return;
+          e.preventDefault();
+          if (!cap.value.trim()) return;
           var value = cap.value;
           cap.value = '';
           doCapture(value);
