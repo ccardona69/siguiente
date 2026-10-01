@@ -134,6 +134,15 @@ svg {
   height: 20px;
   flex: none;
 }
+/* Titulares con líneas equilibradas y párrafos sin una palabra sola al final. */
+h1,
+h2,
+.menu-intro {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -643,6 +652,11 @@ kbd {
   line-height: 1.35;
   letter-spacing: -0.02em;
 }
+.hero--xlong {
+  font-size: 22px !important;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
 .for-outcome {
   margin: 16px 0 0;
   color: var(--text-dim);
@@ -884,12 +898,12 @@ kbd {
   align-items: stretch;
   gap: 12px;
 }
-.inbox-search {
+.search-field {
   position: relative;
   flex: 1;
   max-width: none;
 }
-.inbox-search > svg {
+.search-field > svg {
   position: absolute;
   left: 14px;
   top: 13px;
@@ -907,7 +921,7 @@ kbd {
   color: var(--text);
   font-size: 16px;
 }
-.inbox-search .log-search {
+.search-field .log-search {
   padding-left: 44px;
 }
 .filter-select {
@@ -1127,6 +1141,10 @@ kbd {
 .field textarea {
   resize: vertical;
 }
+.field input[aria-invalid="true"],
+.task .capture[aria-invalid="true"] {
+  border-color: var(--red);
+}
 .field small {
   font-size: 14px;
   color: var(--text-dim);
@@ -1316,7 +1334,6 @@ kbd {
 }
 .log-month span {
   text-align: center;
-  text-transform: capitalize;
   font-size: 16px;
   flex: 1;
   min-width: 0;
@@ -1331,13 +1348,20 @@ kbd {
   border-radius: 8px;
   color: var(--text);
   background: var(--surface);
-  font-size: 24px;
 }
-.log-controls .log-search {
+.log-month-btn:hover {
+  background: var(--surface-2);
+}
+.log-month-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.log-month-btn[aria-disabled="true"]:hover {
+  background: var(--surface);
+}
+.log-controls .search-field {
+  flex: 1 1 180px;
   min-width: 180px;
-  max-width: none;
-  flex: 1;
-  width: 100%;
 }
 .log {
   padding: 0;
@@ -1595,6 +1619,10 @@ input[type="checkbox"] {
   padding-top: 24px;
   margin-top: 24px;
   border-top: 1px solid var(--line);
+}
+/* Los atajos de teclado solo se listan con puntero fino (ver al final). */
+.menu-section--keys {
+  display: none;
 }
 .menu-section h2 {
   margin: 0 0 12px;
@@ -1897,7 +1925,7 @@ input[type="checkbox"] {
     align-items: center;
     gap: 16px;
   }
-  .inbox-search {
+  .inbox-controls .search-field {
     max-width: 440px;
   }
   .filter-select {
@@ -1956,9 +1984,8 @@ input[type="checkbox"] {
     flex: 0 1 auto;
     min-width: 155px;
   }
-  .log-controls .log-search {
+  .log-controls .search-field {
     max-width: 360px;
-    width: auto;
   }
   .log > li {
     padding: 24px;
@@ -2078,9 +2105,14 @@ input[type="checkbox"] {
   }
   .topline {
     margin-bottom: 24px;
+    min-height: 44px;
   }
   .topline-right {
     gap: 16px;
+  }
+  /* la barra lateral ya ofrece Ajustes y el cambio de tema: no se duplican arriba */
+  .topline-right .iconbtn {
+    display: none;
   }
   .appbar-save {
     margin-top: 8px;
@@ -2117,6 +2149,12 @@ input[type="checkbox"] {
   }
   .capture-hint {
     display: inline;
+  }
+}
+/* Con teclado y puntero fino: la lista de atajos tiene sentido. */
+@media (hover: hover) and (pointer: fine) {
+  .menu-section--keys {
+    display: block;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

@@ -512,6 +512,20 @@
     var d = new Date(iso);
     return d.getHours() + ":" + pad(d.getMinutes());
   }
+  // mes local 'YYYY-MM' de una marca ISO
+  function monthOf(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+  }
+  // solo la primera letra en mayúscula, como se escribe en español: 'Octubre de 2026'
+  function capitalize(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+  // tamaño del titular según su largo, para que la acción y sus botones sigan a la vista
+  function heroSize(text) {
+    var n = String(text || "").length;
+    return n > 180 ? " hero--long hero--xlong" : n > 120 ? " hero--long" : "";
+  }
 
   // ---------- estado de la aplicación ----------
   var STATE = Core.emptyState(); // única fuente de verdad
@@ -875,6 +889,8 @@
     if (!r.ok) {
       VIEW.rescheduleError = r.error;
       render();
+      var field = document.getElementById("rs-date");
+      if (field) field.focus();
       return;
     }
     VIEW = { name: "hoy" };
@@ -928,12 +944,20 @@
       now(),
     );
     if (!r.ok) {
+      var titleText = (title ? title.value : task.title || "").trim();
       VIEW.defineError = r.error;
+      // el campo que causa el error: nombre vacío o largo, o acción vacía
+      VIEW.defineField =
+        !titleText || titleText.length > 240
+          ? "d-title"
+          : !(n && n.value.trim())
+            ? "d-next"
+            : null;
       VIEW.draftNext = n ? n.value : "";
       VIEW.draftTitle = title ? title.value : task.title;
       VIEW.draftOutcome = outcome ? outcome.value : task.outcome;
       render();
-      var el = document.getElementById("d-next");
+      var el = document.getElementById(VIEW.defineField || "d-next");
       if (el) el.focus();
       return;
     }
@@ -962,8 +986,11 @@
         error.textContent = r.error;
         error.hidden = false;
       }
-      if (next && !next.value.trim()) next.focus();
-      else announce(r.error);
+      if (next && !next.disabled && !next.value.trim()) {
+        next.setAttribute("aria-invalid", "true");
+        next.setAttribute("aria-describedby", "close-error");
+        next.focus();
+      } else announce(r.error);
       return;
     }
     stopElapsed();
@@ -1156,6 +1183,8 @@
     arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
     left: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+    prev: svg('<path d="m15 6-6 6 6 6"/>'),
+    next: svg('<path d="m9 6 6 6-6 6"/>'),
     play: svg('<path d="m8 5 11 7-11 7V5Z"/>'),
     pause: svg('<path d="M8 5v14M16 5v14"/>'),
     check: svg('<path d="m5 12 4 4L19 6"/>'),
@@ -1205,9 +1234,53 @@
     try {
       localStorage.setItem("siguiente.theme", value);
     } catch (e) {}
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", isDark() ? "#171513" : "#f5f3ee");
     render();
+  }
+  // pinta la barra del navegador con el fondo del tema efectivo
+  function paintThemeColor() {
+    var color = isDark() ? "#171513" : "#f5f3ee";
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      if (m.getAttribute("content") !== color) m.setAttribute("content", color);
+    });
+  }
+  // aviso solo para lectores de pantalla, en una región fija que nunca se repinta
+  var srTimer = null;
+  function srAnnounce(message, delay) {
+    var el = document.getElementById("sr-status");
+    if (!el || !message) return;
+    clearTimeout(srTimer);
+    srTimer = setTimeout(function () {
+      // el mismo texto dos veces no se anuncia: se alterna un espacio fino
+      el.textContent = el.textContent === message ? message + "\u00a0" : message;
+    }, delay || 0);
+  }
+  // título de la pestaña: la sección actual y, durante una sesión, la acción en curso
+  var lastTitle = null;
+  function pageTitle() {
+    var open = Core.openSession(STATE);
+    if (VIEW.menu) return "Ajustes · Siguiente";
+    if ((VIEW.name === "sesion" || VIEW.name === "cerrar") && open)
+      return (
+        (VIEW.name === "cerrar"
+          ? "Cierre de sesión"
+          : open.pausedAt
+            ? "En pausa"
+            : "En sesión") +
+        ": " +
+        open.action +
+        " · Siguiente"
+      );
+    var names = {
+      bandeja: "Bandeja",
+      semana: "Semana",
+      progreso: "Progreso",
+      definir: "Editar tarea",
+      ajustar: "Ajustar tarea",
+      reprogramar: "Mover a otro día",
+    };
+    return names[VIEW.name]
+      ? names[VIEW.name] + " · Siguiente"
+      : "Siguiente · Un paso a la vez";
   }
   function announce(message) {
     var el = document.getElementById("announcement");
@@ -1320,12 +1393,18 @@
     );
   }
 
+  // atributos de un campo con error: lo marca y lo une al mensaje que lo explica
+  function invalidAttrs(invalid, errorId) {
+    return invalid
+      ? ' aria-invalid="true" aria-describedby="' + errorId + '"'
+      : "";
+  }
+
   // ---------- render ----------
   var lastViewKey = null; // la entrada de vista solo se anima al cambiar de sección
   function render() {
     var app = document.getElementById("app");
-    var themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta) themeMeta.content = isDark() ? "#171513" : "#f5f3ee";
+    paintThemeColor();
     var announcementNode = document.getElementById("announcement");
     var previousWorkspace = document.getElementById("main-content");
     var previousScroll = previousWorkspace ? previousWorkspace.scrollTop : 0;
@@ -1392,6 +1471,12 @@
     var statusSlot = document.getElementById("status-message-slot");
     if (statusSlot && announcementNode)
       statusSlot.appendChild(announcementNode);
+    // solo se escribe si cambió: no pisa un título puesto desde fuera
+    var title = pageTitle();
+    if (title !== lastTitle) {
+      document.title = title;
+      lastTitle = title;
+    }
     wire();
     var currentWorkspace = document.getElementById("main-content");
     if (!entering) {
@@ -1625,7 +1710,7 @@
         '</span></div><p class="task-context">' +
         esc(first.task.title) +
         '</p><h2 class="hero' +
-        (first.task.nextAction.length > 120 ? " hero--long" : "") +
+        heroSize(first.task.nextAction) +
         '">' +
         esc(first.task.nextAction) +
         "</h2>" +
@@ -1705,7 +1790,7 @@
       tasks = all.slice(0, limit);
     var html =
       sessionBanner() +
-      '<div class="inbox-controls"><div class="inbox-search">' +
+      '<div class="inbox-controls"><div class="search-field">' +
       ICON.search +
       '<label class="sr-only" for="inbox-search">Buscar tareas</label><input class="log-search" id="inbox-search" type="search" placeholder="Buscar una tarea…" value="' +
       esc(VIEW.inboxQuery || "") +
@@ -1728,11 +1813,17 @@
           );
         })
         .join("") +
-      '</select></div><p class="results-count" aria-live="polite">' +
+      '</select></div><p class="results-count">' +
       all.length +
       (all.length === 1 ? " tarea" : " tareas") +
-      (query ? " encontradas" : "") +
+      (query ? (all.length === 1 ? " encontrada" : " encontradas") : "") +
       "</p>";
+    VIEW.inboxSummary =
+      query && !all.length
+        ? "No encontramos esa tarea."
+        : all.length +
+          (all.length === 1 ? " tarea" : " tareas") +
+          (query ? (all.length === 1 ? " encontrada" : " encontradas") : "");
     if (!tasks.length) {
       return (
         html +
@@ -1849,7 +1940,7 @@
     html += "</ul>";
     if (all.length > limit)
       html +=
-        '<button type="button" class="btn btn--quiet more-button" data-action="inbox-more">Mostrar más tareas (' +
+        '<button type="button" class="btn btn--quiet more-button" id="inbox-more" data-action="inbox-more">Mostrar más tareas (' +
         (all.length - limit) +
         ")</button>";
     return html;
@@ -1873,10 +1964,12 @@
         : "") +
       '<label class="field" for="d-title"><span>Nombre de la tarea</span><input id="d-title" type="text" maxlength="240" value="' +
       esc(title) +
-      '" required></label><label class="field" for="d-next"><span>Siguiente acción</span><input id="d-next" type="text" maxlength="500" value="' +
+      '" required' +
+      invalidAttrs(VIEW.defineError && VIEW.defineField === "d-title", "define-error") +
+      '></label><label class="field" for="d-next"><span>Siguiente acción</span><input id="d-next" type="text" maxlength="500" value="' +
       esc(action) +
       '" required' +
-      (VIEW.defineError ? ' aria-describedby="define-error"' : "") +
+      invalidAttrs(VIEW.defineError && VIEW.defineField === "d-next", "define-error") +
       '></label><p class="action-hint">Piensa en el primer paso, no en toda la tarea.</p><label class="field" for="d-outcome"><span>¿Para qué? <small>Opcional</small></span><input id="d-outcome" type="text" maxlength="500" value="' +
       esc(outcome) +
       '" placeholder="El resultado que quieres conseguir"></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Guardar cambios ' +
@@ -1943,7 +2036,9 @@
       localPlus(1) +
       '" value="' +
       esc(VIEW.rescheduleDraft || localPlus(1)) +
-      '" required></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Mover a ese día ' +
+      '" required' +
+      invalidAttrs(!!VIEW.rescheduleError, "reschedule-error") +
+      '></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Mover a ese día ' +
       ICON.arrow +
       '</button><button type="button" class="link" data-action="adjust" data-id="' +
       esc(task.id) +
@@ -1978,7 +2073,7 @@
       '</span><p class="session-task-name">' +
       esc(s.title) +
       '</p><h1 id="page-title" class="hero' +
-      (s.action.length > 120 ? " hero--long" : "") +
+      heroSize(s.action) +
       '" tabindex="-1">' +
       esc(s.action) +
       '</h1></div><div class="tempo-stage' +
@@ -2161,18 +2256,19 @@
       return html;
     }
 
-    VIEW.logMonth = VIEW.logMonth || localDate().slice(0, 7);
-    var month = VIEW.logMonth;
-    var monthLabel = new Intl.DateTimeFormat("es", {
-      month: "long",
-      year: "numeric",
-    }).format(parseLocalDate(month + "-01"));
+    // sin mes elegido, el de la sesión más reciente: tras un cambio de mes el registro no aparece vacío
+    VIEW.logMonth = VIEW.logMonth || monthOf(log[0].startedAt);
+    var month = VIEW.logMonth,
+      isLatest = month >= localDate().slice(0, 7);
+    var monthLabel = capitalize(
+      new Intl.DateTimeFormat("es", {
+        month: "long",
+        year: "numeric",
+      }).format(parseLocalDate(month + "-01")),
+    );
     var query = foldSearch((VIEW.logQuery || "").trim());
     var filtered = log.filter(function (x) {
-      var started = new Date(x.startedAt);
-      var sessionMonth =
-        started.getFullYear() + "-" + pad(started.getMonth() + 1);
-      if (sessionMonth !== month) return false;
+      if (monthOf(x.startedAt) !== month) return false;
       var t = Core.taskById(STATE, x.taskId);
       return foldSearch(
         [
@@ -2187,15 +2283,23 @@
     html +=
       '<p class="section-label">Registro</p>' +
       '<div class="log-controls"><div class="log-month">' +
-      '<button type="button" class="log-month-btn" data-action="log-prev" aria-label="Mes anterior">‹</button>' +
-      '<span aria-live="polite">' +
+      '<button type="button" class="log-month-btn" id="log-prev" data-action="log-prev" aria-label="Mes anterior">' +
+      ICON.prev +
+      "</button>" +
+      "<span>" +
       esc(monthLabel) +
       "</span>" +
-      '<button type="button" class="log-month-btn" data-action="log-next" aria-label="Mes siguiente">›</button></div>' +
+      '<button type="button" class="log-month-btn" id="log-next" data-action="log-next" aria-label="Mes siguiente"' +
+      (isLatest ? ' aria-disabled="true"' : "") +
+      ">" +
+      ICON.next +
+      "</button></div>" +
+      '<div class="search-field">' +
+      ICON.search +
       '<input id="log-search" class="log-search" type="search" autocomplete="off" ' +
       'placeholder="Buscar en el registro" aria-label="Buscar en el registro" value="' +
       esc(VIEW.logQuery || "") +
-      '"></div>' +
+      '"></div></div>' +
       '<ul class="log" data-month="' +
       esc(monthLabel) +
       '">';
@@ -2224,12 +2328,26 @@
         "</li>";
     });
     html += "</ul>";
+    VIEW.logSummary =
+      monthLabel +
+      ": " +
+      (filtered.length
+        ? filtered.length +
+          (filtered.length === 1 ? " sesión" : " sesiones") +
+          (query ? (filtered.length === 1 ? " encontrada" : " encontradas") : "")
+        : query
+          ? "ninguna sesión coincide"
+          : "sin sesiones");
     if (!filtered.length)
       html +=
-        '<p class="log-empty" role="status">No hay sesiones que coincidan en este mes.</p>';
+        '<p class="log-empty">' +
+        (query
+          ? "No hay sesiones que coincidan en este mes."
+          : "No hay sesiones registradas en este mes.") +
+        "</p>";
     if (filtered.length > (VIEW.logLimit || 50))
       html +=
-        '<button type="button" class="btn btn--quiet more-button" data-action="log-more">Mostrar más sesiones</button>';
+        '<button type="button" class="btn btn--quiet more-button" id="log-more" data-action="log-more">Mostrar más sesiones</button>';
     if (filtered.length)
       html +=
         '<button type="button" class="link" data-action="print">Imprimir este registro</button>';
@@ -2247,7 +2365,9 @@
       ]
         .map(function (t) {
           return (
-            '<button type="button" data-action="theme-set" data-value="' +
+            '<button type="button" id="theme-opt-' +
+            t[0] +
+            '" data-action="theme-set" data-value="' +
             t[0] +
             '" aria-pressed="' +
             (THEME === t[0]) +
@@ -2310,7 +2430,7 @@
         "</div></section>";
     }
     html +=
-      '<section class="menu-section"><h2>Atajos de teclado</h2><ul class="shortcut-list"><li><kbd>N</kbd>Nueva tarea</li><li><kbd>Espacio</kbd>Empezar desde Hoy</li><li><kbd>P</kbd>Pausar o reanudar</li><li><kbd>Esc</kbd>Volver a Hoy</li></ul></section><section class="menu-section"><h2>Empezar de nuevo</h2><p>Esta acción borra las tareas, los planes y las sesiones. Antes de hacerlo, exporta una copia.</p>';
+      '<section class="menu-section menu-section--keys"><h2>Atajos de teclado</h2><ul class="shortcut-list"><li><kbd>N</kbd>Nueva tarea</li><li><kbd>Espacio</kbd>Empezar desde Hoy</li><li><kbd>P</kbd>Pausar o reanudar</li><li><kbd>Esc</kbd>Volver a Hoy</li></ul></section><section class="menu-section"><h2>Empezar de nuevo</h2><p>Esta acción borra las tareas, los planes y las sesiones. Antes de hacerlo, exporta una copia.</p>';
     if (!VIEW.confirmWipe)
       html +=
         '<button type="button" class="btn btn--danger" data-action="wipe-ask">Borrar todos los datos ' +
@@ -2352,7 +2472,7 @@
         e.preventDefault();
         if (cap.value.trim()) doCapture(cap.value);
       });
-    function wireSearch(id, key) {
+    function wireSearch(id, key, summary) {
       var input = document.getElementById(id);
       if (!input) return;
       input.addEventListener("input", function () {
@@ -2367,10 +2487,11 @@
           next.focus({ preventScroll: true });
           next.setSelectionRange(start, end);
         }
+        srAnnounce(VIEW[summary], 700);
       });
     }
-    wireSearch("inbox-search", "inboxQuery");
-    wireSearch("log-search", "logQuery");
+    wireSearch("inbox-search", "inboxQuery", "inboxSummary");
+    wireSearch("log-search", "logQuery", "logSummary");
     var filter = document.getElementById("inbox-filter");
     if (filter)
       filter.addEventListener("change", function () {
@@ -2380,6 +2501,7 @@
         render();
         var next = document.getElementById("inbox-filter");
         if (next) next.focus();
+        srAnnounce(VIEW.inboxSummary, 100);
       });
     var imp = document.getElementById("importfile");
     if (imp)
@@ -2406,6 +2528,11 @@
           '[name="session-progress"]:checked',
         );
         doCloseSession(selected ? selected.value : "");
+      });
+    var closeNext = document.getElementById("cl-next");
+    if (closeNext)
+      closeNext.addEventListener("input", function () {
+        if (closeNext.value.trim()) closeNext.removeAttribute("aria-invalid");
       });
     var finished = document.getElementById("cl-finished");
     if (finished)
@@ -2554,11 +2681,13 @@
         render();
       }
     } else if (action === "log-prev" || action === "log-next") {
+      if (btn.getAttribute("aria-disabled") === "true") return;
       var month = parseLocalDate(VIEW.logMonth + "-01");
       month.setMonth(month.getMonth() + (action === "log-prev" ? -1 : 1));
       VIEW.logMonth = month.getFullYear() + "-" + pad(month.getMonth() + 1);
       VIEW.logLimit = 50;
       render();
+      srAnnounce(VIEW.logSummary, 100);
     } else if (action === "inbox-more") {
       VIEW.inboxLimit = (VIEW.inboxLimit || 30) + 30;
       render();

@@ -260,6 +260,8 @@ async function main() {
     // index.html lleva un <script> y un <style> en línea: sin unsafe-inline la app no arrancaría
     assert(/script-src[^;]*'self'[^;]*'unsafe-inline'/.test(csp), 'script propio y en línea');
     assert(/style-src[^;]*'self'[^;]*'unsafe-inline'/.test(csp), 'estilo propio y en línea');
+    // el icono de la pestaña va en línea como data: dentro de index.html
+    assert(/img-src[^;]*'self'[^;]*data:/.test(csp), 'icono en línea');
     assert(!/https?:|\*/.test(csp), 'sin orígenes externos ni comodines');
   });
 
