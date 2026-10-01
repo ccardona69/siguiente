@@ -3,7 +3,7 @@
 ## Pruebas automatizadas
 
 - **55 pruebas de modelo y contrato remoto: aprobadas, 0 fallos.** Se ejecutaron con Node sobre el código fuente incluido. Las pruebas remotas usan fetch simulado; no contactan con ningún servidor.
-- **30 pruebas del Worker (worker.dist.js): aprobadas, 0 fallos.** Almacén simulado en memoria con el mismo contrato que el SQLite del Durable Object: revisiones del servidor, If-Match obligatorio (428/409), If-None-Match (304), validación con SiguienteCore, gzip, traspaso desde KV, copias diarias, 429 tras intentos fallidos y registros sin datos personales.
+- **34 pruebas del Worker (worker.dist.js): aprobadas, 0 fallos.** Almacén simulado en memoria con el mismo contrato que el SQLite del Durable Object: revisiones del servidor, If-Match obligatorio (428/409), If-None-Match (304), validación con SiguienteCore, gzip, traspaso desde KV, copias diarias, 429 tras intentos fallidos y registros sin datos personales.
 - **Recorrido de interfaz en Chromium, 320 × 700, 390 × 844, tablet 768 × 1024 y escritorio 1440 × 900: 147 comprobaciones aprobadas en cada tamaño.** Incluye captura, errores, definición de acción, persistencia, tema, sesiones, pausa/reanudación, cierre, búsqueda mensual, texto HTML no ejecutable, edición, reprogramación, recuperación, deshacer, copias JSON, confirmaciones y búsqueda de títulos históricos.
 - Escenarios adicionales aprobados: recarga real, cuota de almacenamiento, formato incompatible, cambios de otra pestaña, paginación y expansión/restauración del registro para imprimir.
 - En los escenarios comprobados no se registraron excepciones, errores de consola ni recursos fallidos. El modo local no solicita `/api/state`.

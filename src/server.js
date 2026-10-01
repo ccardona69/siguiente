@@ -57,6 +57,9 @@ function sqlStore(sql) {
     backup(day, body, revision) {
       sql.exec('INSERT OR IGNORE INTO backups (day, body, revision) VALUES (?, ?, ?)', day, body, revision);
     },
+    pruneBackups(cutoffDay) {
+      sql.exec('DELETE FROM backups WHERE day < ?', cutoffDay);
+    },
     // dentro del objeto durable cada fetch corre en un hilo único, así que leer la
     // revisión y escribir ya es atómico; transactionSync lo deja explícito
     atomic(fn) {
@@ -81,6 +84,11 @@ export function memoryStore(initial = {}) {
     },
     backup(day, body, revision) {
       if (!backups.has(day)) backups.set(day, { body, revision });
+    },
+    pruneBackups(cutoffDay) {
+      for (const day of backups.keys()) {
+        if (day < cutoffDay) backups.delete(day);
+      }
     },
     atomic(fn) {
       return fn();
@@ -109,12 +117,11 @@ function throttled(holder) {
 
 // devuelve el estado guardado con su ETag de servidor; con If-None-Match igual responde 304
 async function readState(request, store, env) {
-  const { body, revision } = store.read();
   // primera lectura con el almacén vacío: adopta lo que hubiera en KV como revision 1
-  if (body === null && env.SIGUIENTE_KV) {
-    const adopted = await adoptLegacy(store, env);
-    if (adopted) return readState(request, store, {});
+  if (store.read().body === null && env.SIGUIENTE_KV) {
+    await adoptLegacy(store, env);
   }
+  const { body, revision } = store.read();
   const etag = body === null ? '"empty"' : '"' + revision + '"';
   if (request.headers.get('If-None-Match') === etag) {
     return new Response(null, { status: 304, headers: { ETag: etag, 'Cache-Control': 'no-store' } });
@@ -138,15 +145,16 @@ async function readState(request, store, env) {
 async function adoptLegacy(store, env) {
   try {
     const legacy = await env.SIGUIENTE_KV.get('state');
-    if (!legacy) return false;
+    if (!legacy) return;
     const parsed = parseState(legacy);
-    if (!parsed.ok) return false;
-    store.write(JSON.stringify(parsed.value), 1);
-    log('legacy_adopted', { revision: 1 });
-    return true;
-  } catch (e) {
-    return false;
-  }
+    if (!parsed.ok) return;
+    // un PUT pudo ganar durante la espera a KV: solo se adopta si sigue vacío
+    const current = store.read();
+    if (current.body !== null) return;
+    const revision = current.revision + 1;
+    store.write(JSON.stringify(parsed.value), revision);
+    log('legacy_adopted', { revision });
+  } catch (e) {}
 }
 
 // valida y guarda el estado recibido: exige If-Match con la revisión que el cliente
@@ -155,9 +163,11 @@ async function writeState(request, store, env) {
   const declared = Number(request.headers.get('Content-Length'));
   if (declared > MAX_BYTES) return fail('estado demasiado grande', 413);
   const body = await readBody(request);
-  if (body === null) return fail('el cuerpo no se pudo leer', 400);
-  if (byteLength(body) > MAX_BYTES) return fail('estado demasiado grande', 413);
-  const parsed = parseState(body);
+  if (body.tooBig || (body.text !== undefined && byteLength(body.text) > MAX_BYTES)) {
+    return fail('estado demasiado grande', 413);
+  }
+  if (body.text === undefined) return fail('el cuerpo no se pudo leer', 400);
+  const parsed = parseState(body.text);
   if (!parsed.ok) return fail(parsed.error, 400);
 
   const ifMatch = request.headers.get('If-Match');
@@ -165,15 +175,33 @@ async function writeState(request, store, env) {
   const expected = parseIfMatch(ifMatch);
   if (!expected.ok) return fail(expected.error, 400);
 
+  // con el almacén vacío se adopta primero lo que hubiera en KV, también cuando
+  // el primer acceso es un PUT: el cliente lo recibe como 409 y fusiona
+  if (store.read().body === null && env.SIGUIENTE_KV) {
+    await adoptLegacy(store, env);
+  }
+
+  // un cuerpo guardado que ya no se puede leer cuenta como vacío: con If-Match
+  // "empty" la copia local se recupera en vez de chocar siempre con el 409
   const current = store.read();
-  const matches = expected.empty ? current.body === null : current.revision === expected.revision;
+  let currentState = null;
+  if (current.body !== null) {
+    try {
+      currentState = JSON.parse(current.body);
+    } catch (e) {
+      currentState = undefined;
+    }
+  }
+  const effectivelyEmpty = current.body === null || currentState === undefined;
+  const matches = expected.empty
+    ? effectivelyEmpty
+    : !effectivelyEmpty && current.revision === expected.revision;
   if (!matches) {
-    log('conflict', { status: 409, expected: ifMatch, current: current.body === null ? 'empty' : current.revision });
-    return json(
-      { error: 'conflicto de revisión', state: current.body === null ? null : JSON.parse(current.body) },
-      409,
-      { ETag: current.body === null ? '"empty"' : '"' + current.revision + '"' },
-    );
+    const etag = effectivelyEmpty ? '"empty"' : '"' + current.revision + '"';
+    log('conflict', { status: 409, expected: ifMatch, current: effectivelyEmpty ? 'empty' : current.revision });
+    return json({ error: 'conflicto de revisión', state: effectivelyEmpty ? null : currentState }, 409, {
+      ETag: etag,
+    });
   }
 
   const revision = current.revision + 1;
@@ -191,23 +219,41 @@ async function writeState(request, store, env) {
 function backupBeforeWrite(store, current) {
   if (current.body === null) return;
   try {
-    store.backup(new Date(Date.now()).toISOString().slice(0, 10), current.body, current.revision);
+    const today = new Date(Date.now());
+    store.backup(today.toISOString().slice(0, 10), current.body, current.revision);
+    // mismo criterio que el TTL anterior de KV: solo se conservan 30 días
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    store.pruneBackups(cutoff);
     log('backup_written', { revision: current.revision });
   } catch (e) {
     log('backup_failed');
   }
 }
 
-// cuerpo de la petición como texto; acepta gzip cuando viene declarado
+// cuerpo de la petición como texto; acepta gzip cuando viene declarado y lo
+// descomprime por partes cortando en MAX_BYTES: un archivo muy comprimido no
+// puede inflar la memoria del objeto durable
 async function readBody(request) {
   try {
     if ((request.headers.get('Content-Encoding') || '').toLowerCase() === 'gzip') {
-      const stream = request.body.pipeThrough(new DecompressionStream('gzip'));
-      return await new Response(stream).text();
+      const reader = request.body.pipeThrough(new DecompressionStream('gzip')).getReader();
+      const chunks = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_BYTES) {
+          await reader.cancel();
+          return { tooBig: true };
+        }
+        chunks.push(value);
+      }
+      return { text: await new Response(new Blob(chunks)).text() };
     }
-    return await request.text();
+    return { text: await request.text() };
   } catch (e) {
-    return null;
+    return {};
   }
 }
 

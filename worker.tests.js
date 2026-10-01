@@ -427,6 +427,53 @@ async function main() {
     assertEqual(env.__store.backups.size, 0);
   });
 
+  test('el primer PUT adopta el estado heredado y responde 409 con él', async () => {
+    const kv = makeKv({ state: JSON.stringify(validState({ tasks: [validTask()] })) });
+    const env = makeEnv(server, { kv });
+    const res = await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(res.status, 409, 'la herencia pasa primero');
+    const body = await res.json();
+    assertEqual(body.state.tasks.length, 1, 'devuelve el estado adoptado');
+    assertEqual(res.headers.get('ETag'), '"1"');
+    assertEqual(env.__store.meta.revision, 1, 'adoptado como revisión 1');
+  });
+
+  test('un cuerpo guardado ilegible cuenta como vacío y PUT "empty" lo recupera', async () => {
+    const env = makeEnv(server);
+    env.__store.meta.state = '{roto';
+    env.__store.meta.revision = 4;
+    const res = await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(res.status, 200);
+    assertEqual(env.__store.meta.revision, 5, 'continúa la revisión');
+  });
+
+  test('las copias con más de 30 días se eliminan', async () => {
+    const env = makeEnv(server);
+    await atTime('2026-08-01T10:00:00Z', () => call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' }));
+    await atTime('2026-08-02T10:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"1"' }),
+    );
+    assert(env.__store.backups.has('2026-08-02'), 'hay copia del inicio del día');
+    await atTime('2026-10-01T10:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask({ id: 't2' })] }), { 'If-Match': '"2"' }),
+    );
+    assert(!env.__store.backups.has('2026-08-02'), 'la copia vieja se borró');
+    assert(env.__store.backups.has('2026-10-01'), 'la copia del día sigue');
+  });
+
+  test('un gzip que descomprime más del límite responde 413 sin guardar', async () => {
+    const env = makeEnv(server);
+    const packed = await gzip('x'.repeat(33 * 1024 * 1024));
+    const req = new Request('https://siguiente.test/api/state', {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Encoding': 'gzip', 'If-Match': '"empty"' }, AUTH),
+      body: packed,
+    });
+    const res = await worker.fetch(req, env);
+    assertEqual(res.status, 413);
+    assertEqual(env.__store.meta.state, null, 'nada guardado');
+  });
+
   // --- observabilidad ---
 
   test('los registros describen el resultado sin incluir el token ni el contenido del estado', async () => {
