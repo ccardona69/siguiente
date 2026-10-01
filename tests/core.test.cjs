@@ -334,3 +334,68 @@ test('rechaza estructuras demasiado profundas', () => {
   for (let i = 0; i < 30; i++) current = current.deep = {};
   assert.equal(C.validateState(s).ok, false);
 });
+// historial desordenado, con empates y zonas horarias, para comparar con la consulta directa
+function scrambled() {
+  const s = C.emptyState();
+  const tasks = ['t_a', 't_b', 't_c'];
+  const base = Date.parse('2026-09-01T08:00:00Z');
+  for (let i = 0; i < 120; i++) {
+    const k = (i * 37) % 120;
+    const start = base + Math.floor(k / 2) * 3600000;
+    const iso = new Date(start).toISOString();
+    s.sessions.push({
+      id: 's_' + i,
+      taskId: tasks[i % 3],
+      title: 'Tarea',
+      action: 'Paso',
+      startedAt: i % 5 ? iso : iso.slice(0, 19) + '+00:00',
+      endedAt: i % 11 === 0 ? null : new Date(start + (10 + (i % 7)) * 60000).toISOString(),
+      pausedAt: null,
+      pausedMs: (i % 3) * 30000,
+      progress: 'yes',
+      nextStep: 'Seguir',
+      finished: false,
+      updatedAt: iso,
+    });
+  }
+  return s;
+}
+const naiveClosed = (s) =>
+  s.sessions
+    .filter((x) => x.endedAt)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+test('consultas del historial: mismo orden y totales que la versión directa', () => {
+  const s = scrambled();
+  assert.deepEqual(
+    C.closedSessions(s).map((x) => x.id),
+    naiveClosed(s).map((x) => x.id),
+  );
+  const from = '2026-09-02T00:00:00Z';
+  const to = '2026-09-03T12:00:00Z';
+  assert.deepEqual(
+    C.sessionsBetween(s, from, to).map((x) => x.id),
+    naiveClosed(s)
+      .filter(
+        (x) => Date.parse(x.startedAt) >= Date.parse(from) && Date.parse(x.startedAt) < Date.parse(to),
+      )
+      .map((x) => x.id),
+  );
+  for (const id of ['t_a', 't_b', 't_c', 't_x']) {
+    const direct = naiveClosed(s)
+      .filter((x) => x.taskId === id)
+      .reduce((t, x) => t + C.sessionDuration(x, x.endedAt), 0);
+    assert.equal(C.taskTotalDuration(s, id), direct);
+  }
+  const stats = C.sessionStats(s);
+  assert.equal(stats.count, naiveClosed(s).length);
+  assert.equal(stats.totalMs, C.sessionsTotalDuration(naiveClosed(s), null));
+});
+test('consultas del historial no mutan el estado recibido', () => {
+  const s = scrambled();
+  const before = clone(s);
+  C.closedSessions(s);
+  C.sessionsBetween(s, '2026-09-01T00:00:00Z', '2026-09-30T00:00:00Z');
+  C.taskTotalDuration(s, 't_a');
+  C.sessionStats(s);
+  assert.deepEqual(s, before);
+});

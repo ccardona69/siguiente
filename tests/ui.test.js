@@ -115,6 +115,18 @@
     "Breakpoints solo min-width",
   );
   check(
+    ["theme-toggle", "toggle-menu"].every(
+      (a) =>
+        all('[data-action="' + a + '"]').filter((e) => e.getClientRects().length)
+          .length === 1,
+    ),
+    "Tema y ajustes sin controles duplicados a la vista",
+  );
+  check(
+    /^data:image\/png;base64,/.test(get('link[rel="icon"]').getAttribute("href")),
+    "Icono de pestaña en línea, sin archivos externos",
+  );
+  check(
     all(phoneShell ? ".tab" : ".sidenav .nav-item").every((e) => {
       var r = e.getBoundingClientRect();
       return r.width >= 44 && r.height >= 44;
@@ -137,7 +149,11 @@
     check(!!get("#action-error"), "Error de acción vacía visible");
     check(state().tasks[0].nextAction === null, "Error no modifica datos");
     input("#inline-action", "Redactar el primer párrafo");
-    click("#theme-toggle-top");
+    click('[data-action="theme-toggle"]');
+    check(
+      all('meta[name="theme-color"]').every((m) => m.content === "#171513"),
+      "La barra del navegador sigue al tema oscuro",
+    );
     check(
       get("#inline-action").value === "Redactar el primer párrafo",
       "Borrador sobrevive al cambio de tema",
@@ -156,12 +172,17 @@
     await wait(0);
     check(!!get("#elapsed"), "Temporizador visible");
     check(SiguienteCore.openSession(state()), "Sesión persistida");
+    check(
+      /^En sesión: .+ · Siguiente$/.test(document.title),
+      "La pestaña muestra la acción en curso",
+    );
     await wait(1080);
     check(get("#elapsed").textContent !== "00:00", "Temporizador avanza");
     click('[data-action="session-pause-toggle"]');
     await wait(0);
     var frozen = get("#elapsed").textContent;
     check(!!SiguienteCore.openSession(state()).pausedAt, "Pausa persistida");
+    check(/^En pausa: /.test(document.title), "La pestaña indica la pausa");
     await wait(1100);
     check(get("#elapsed").textContent === frozen, "Tiempo congelado en pausa");
     go("bandeja");
@@ -181,10 +202,20 @@
     submit("#close-form");
     check(!get("#close-error").hidden, "Error de cierre visible");
     check(
+      get("#cl-next").getAttribute("aria-invalid") === "true" &&
+        get("#cl-next").getAttribute("aria-describedby") === "close-error" &&
+        document.activeElement.id === "cl-next",
+      "El error marca el campo, lo enlaza al mensaje y le da el foco",
+    );
+    check(
       SiguienteCore.openSession(state()),
       "No se pierde una sesión por un error",
     );
     input("#cl-next", "Revisar la introducción");
+    check(
+      !get("#cl-next").hasAttribute("aria-invalid"),
+      "Al corregirlo deja de marcarse",
+    );
     click('[name="session-progress"][value="some"]');
     submit("#close-form");
     await wait(0);
@@ -197,10 +228,25 @@
     valid();
     go("progreso");
     check(all(".log > li").length === 1, "Registro de sesiones");
+    check(document.title === "Progreso · Siguiente", "Título de pestaña por sección");
+    var monthName = get(".log-month span").textContent;
+    check(
+      /^\p{Lu}\p{Ll}+ de \d{4}$/u.test(monthName),
+      "Mes escrito como en español (solo la inicial en mayúscula)",
+    );
+    check(
+      get("#log-next").getAttribute("aria-disabled") === "true",
+      "No se avanza más allá del mes actual",
+    );
     var pane = get("#main-content");
     if (pane.scrollHeight - pane.clientHeight > 48) pane.scrollTop = 48;
     var scrollBeforeSearch = pane.scrollTop;
     input("#log-search", "NO_COINCIDE");
+    await wait(750);
+    check(
+      get("#sr-status").textContent.includes("ninguna sesión coincide"),
+      "El resultado de la búsqueda se anuncia a lectores de pantalla",
+    );
     check(
       get("#main-content").scrollTop === scrollBeforeSearch,
       "Buscar no reinicia el desplazamiento del panel",
@@ -211,10 +257,25 @@
     );
     input("#log-search", "");
     check(all(".log > li").length === 1, "Búsqueda restablecida");
+    get("#log-prev").focus();
     click('[data-action="log-prev"]');
     check(all(".log > li").length === 0, "Cambio a mes sin registros");
+    check(
+      document.activeElement.id === "log-prev",
+      "El foco sigue en el botón del mes tras repintar",
+    );
+    check(
+      get(".log-empty").textContent.includes("registradas"),
+      "Mes vacío sin búsqueda: mensaje propio",
+    );
     click('[data-action="log-next"]');
     check(all(".log > li").length === 1, "Volver al mes actual");
+    click("#log-next");
+    check(
+      get(".log-month span").textContent === monthName &&
+        all(".log > li").length === 1,
+      "El botón desactivado no cambia de mes",
+    );
     go("bandeja");
     input(
       "#capture",
@@ -244,7 +305,7 @@
     input("#d-title", "Leer y tomar notas");
     input("#d-next", "Leer dos páginas");
     input("#d-outcome", "Apuntes preparados");
-    click("#theme-toggle-top");
+    click('[data-action="theme-toggle"]');
     check(
       get("#d-title").value === "Leer y tomar notas" &&
         get("#d-next").value === "Leer dos páginas",
@@ -293,6 +354,12 @@
     check(state().tasks[0].status === "active", "Deshacer finalización");
     valid();
     click('[data-action="toggle-menu"]');
+    check(
+      (getComputedStyle(get(".menu-section--keys")).display !== "none") ===
+        matchMedia("(hover: hover) and (pointer: fine)").matches,
+      "Atajos de teclado solo donde hay teclado y puntero fino",
+    );
+    check(document.title === "Ajustes · Siguiente", "Título de pestaña en Ajustes");
     var create = URL.createObjectURL;
     var blob = null;
     URL.createObjectURL = function (value) {
@@ -372,7 +439,7 @@
     );
     check(document.activeElement.id === "capture", "Atajo N");
     input("#capture", "Un borrador sin guardar");
-    click("#theme-toggle-top");
+    click('[data-action="theme-toggle"]');
     check(
       get("#capture").value === "Un borrador sin guardar",
       "Captura conserva borrador",

@@ -8,8 +8,11 @@ const url = process.argv[2];
 const chromePath =
   process.env.QA_CHROME ||
   'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
-const profile =
-  require('os').tmpdir() + '\\chqa-cdp-' + process.pid + '-' + Date.now();
+// perfil temporal con el separador del sistema: funciona igual en Windows, macOS y Linux
+const profile = require('path').join(
+  require('os').tmpdir(),
+  'chqa-cdp-' + process.pid + '-' + Date.now(),
+);
 const chrome = spawn(chromePath, [
   '--headless=new',
   '--disable-gpu',

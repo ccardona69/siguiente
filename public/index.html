@@ -4,10 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content">
 <meta name="color-scheme" content="light dark">
-<meta name="theme-color" content="#f5f3ee">
+<meta name="theme-color" content="#f5f3ee" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171513" media="(prefers-color-scheme: dark)">
 <meta name="description" content="Siguiente: captura tareas, define un siguiente paso y dedica tu atención. Un espacio de enfoque que guarda tus datos en tu navegador.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self' data: blob:; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: blob:; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>Siguiente · Un paso a la vez</title>
+<link rel="icon" type="image/png" sizes="64x64" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAMAAACdt4HsAAAAYFBMVEWpRyT+/foAAADdtKWwVTXu29KoRyOoRyTPmYSpRiP/AACpRySoRyO9clfBfGL16uOpRiTkxLcAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABACOexAAAAIHRSTlP+/wD////RLv9OAb2B////fv8AAAAAAAAAAAAAAAAAALG2rHYAAADUSURBVHja7ZfbDoIwEESnlXbphdv//6yIIJoYKR3QmPS8z8mWkHYHesZLDBZJ2BBliWnMcZcYfkicfxbIzvikkFUgyMItAodM5C4QgDBAe5svsH4UOBA4DWaAcQQNAYUgcoKIwAkCLCcg44U02k4NFZGv1IghDK0iDdMElKEuhr801Jd3dMkGoz5itvKN2qA5W0Afgf+I5/wIJf/bPH2pHnOtMw8L/bQVvrCnWX7RJFfdnl+26XWfLhx85aFLF2GQo4onX32zyvdre79NsaP+92v9vwIscwddxcDAIQAAAABJRU5ErkJggg==">
 <script>try{var t=localStorage.getItem('siguiente.theme');if(['light','dark','system'].includes(t))document.documentElement.dataset.theme=t;}catch(e){}</script>
 <style>
 /* MOBILE-FIRST · base: 320–639 px; mejoras progresivas: 640 / 1024 / 1280 px. Controles de 44–48 px, safe areas y navegación fuera del contenido. */
@@ -146,6 +148,15 @@ svg {
   height: 20px;
   flex: none;
 }
+/* Titulares con líneas equilibradas y párrafos sin una palabra sola al final. */
+h1,
+h2,
+.menu-intro {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -193,10 +204,9 @@ svg {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  padding: 36px 20px 24px;
+  padding: 36px 16px 24px;
   border-right: 1px solid var(--line);
   background: var(--sidebar);
-  padding-inline: 16px;
   display: none;
 }
 .brand {
@@ -312,8 +322,6 @@ svg {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  padding-left: 16px;
-  padding-right: 16px;
   padding: max(20px, env(safe-area-inset-top))
     max(16px, env(safe-area-inset-right)) 24px
     max(16px, env(safe-area-inset-left));
@@ -371,16 +379,14 @@ svg {
 }
 .appbar h1 {
   margin: 0;
-  font: 400 42px/1.14 var(--display);
+  font: 400 clamp(28px, 8vw, 32px)/1.14 var(--display);
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
-  font-size: clamp(28px, 8vw, 32px);
 }
 .appbar-subtitle {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   max-width: 65ch;
   color: var(--text-dim);
-  margin-top: 8px;
 }
 .mobile-brand {
   display: flex;
@@ -408,14 +414,12 @@ svg {
 .capture-form {
   display: flex;
   align-items: center;
-  margin: 0 0 24px;
-  padding: 6px 6px 6px 16px;
+  margin: 0 0 20px;
+  padding: 6px 6px 6px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--surface);
-  padding-left: 12px;
   gap: 8px;
-  margin-bottom: 20px;
 }
 .capture-form:focus-within {
   border-color: var(--accent);
@@ -653,15 +657,19 @@ kbd {
 .hero {
   margin: 0;
   color: var(--text);
-  font: 400 clamp(30px, 3vw, 38px)/1.2 var(--display);
+  font: 400 clamp(28px, 8vw, 32px)/1.2 var(--display);
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
-  font-size: clamp(28px, 8vw, 32px);
 }
 .hero--long {
   font-size: 26px !important;
   line-height: 1.35;
   letter-spacing: -0.02em;
+}
+.hero--xlong {
+  font-size: 22px !important;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .for-outcome {
   margin: 16px 0 0;
@@ -687,11 +695,10 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 24px 0 0;
+  margin: 20px 0 0;
   border-top: 1px solid var(--line);
   color: var(--text-dim);
   font-size: 14px;
-  margin-top: 20px;
   padding-top: 16px;
 }
 .focus-foot svg {
@@ -716,11 +723,9 @@ kbd {
   margin-bottom: 16px;
 }
 .empty-state h2 {
-  margin: 12px 0 0;
-  font: 400 36px/1.2 var(--display);
+  margin: 10px 0 0;
+  font: 400 30px/1.2 var(--display);
   letter-spacing: -0.035em;
-  margin-top: 10px;
-  font-size: 30px;
 }
 .empty-state p {
   max-width: 43ch;
@@ -823,8 +828,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 28px 0 12px;
-  margin-top: 24px;
+  margin: 24px 0 12px;
 }
 .section-heading h2,
 .section-label {
@@ -908,12 +912,12 @@ kbd {
   align-items: stretch;
   gap: 12px;
 }
-.inbox-search {
+.search-field {
   position: relative;
   flex: 1;
   max-width: none;
 }
-.inbox-search > svg {
+.search-field > svg {
   position: absolute;
   left: 14px;
   top: 13px;
@@ -931,7 +935,7 @@ kbd {
   color: var(--text);
   font-size: 16px;
 }
-.inbox-search .log-search {
+.search-field .log-search {
   padding-left: 44px;
 }
 .filter-select {
@@ -1151,6 +1155,10 @@ kbd {
 .field textarea {
   resize: vertical;
 }
+.field input[aria-invalid="true"],
+.task .capture[aria-invalid="true"] {
+  border-color: var(--red);
+}
 .field small {
   font-size: 14px;
   color: var(--text-dim);
@@ -1186,11 +1194,10 @@ kbd {
 .week-stack {
   display: grid;
   gap: 0;
-  padding: 0 24px;
+  padding: 0 20px;
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--surface);
-  padding-inline: 20px;
 }
 .day {
   display: grid;
@@ -1318,7 +1325,6 @@ kbd {
 }
 .figure span {
   display: block;
-  margin-top: 8px;
   color: var(--text-dim);
   font-size: 14px;
   margin: 0;
@@ -1342,7 +1348,6 @@ kbd {
 }
 .log-month span {
   text-align: center;
-  text-transform: capitalize;
   font-size: 16px;
   flex: 1;
   min-width: 0;
@@ -1357,13 +1362,20 @@ kbd {
   border-radius: 8px;
   color: var(--text);
   background: var(--surface);
-  font-size: 24px;
 }
-.log-controls .log-search {
+.log-month-btn:hover {
+  background: var(--surface-2);
+}
+.log-month-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.log-month-btn[aria-disabled="true"]:hover {
+  background: var(--surface);
+}
+.log-controls .search-field {
+  flex: 1 1 180px;
   min-width: 180px;
-  max-width: none;
-  flex: 1;
-  width: 100%;
 }
 .log {
   padding: 0;
@@ -1459,11 +1471,10 @@ kbd {
 }
 .session {
   max-width: 748px;
-  margin: 24px auto 0;
+  margin: 8px auto 0;
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--surface);
-  margin-top: 8px;
   padding: 20px;
 }
 .session-heading {
@@ -1545,9 +1556,8 @@ kbd {
 }
 .close-screen h1 {
   margin: 12px 0;
-  font: 400 38px/1.2 var(--display);
+  font: 400 32px/1.2 var(--display);
   letter-spacing: -0.03em;
-  font-size: 32px;
 }
 .close-screen > p {
   color: var(--text-dim);
@@ -1623,6 +1633,10 @@ input[type="checkbox"] {
   padding-top: 24px;
   margin-top: 24px;
   border-top: 1px solid var(--line);
+}
+/* Los atajos de teclado solo se listan con puntero fino (ver al final). */
+.menu-section--keys {
+  display: none;
 }
 .menu-section h2 {
   margin: 0 0 12px;
@@ -1708,7 +1722,7 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  padding-block: 8px max(8px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--sidebar);
   padding-inline: max(8px, env(safe-area-inset-left))
@@ -1925,7 +1939,7 @@ input[type="checkbox"] {
     align-items: center;
     gap: 16px;
   }
-  .inbox-search {
+  .inbox-controls .search-field {
     max-width: 440px;
   }
   .filter-select {
@@ -1984,9 +1998,8 @@ input[type="checkbox"] {
     flex: 0 1 auto;
     min-width: 155px;
   }
-  .log-controls .log-search {
+  .log-controls .search-field {
     max-width: 360px;
-    width: auto;
   }
   .log > li {
     padding: 24px;
@@ -2106,9 +2119,14 @@ input[type="checkbox"] {
   }
   .topline {
     margin-bottom: 24px;
+    min-height: 44px;
   }
   .topline-right {
     gap: 16px;
+  }
+  /* la barra lateral ya ofrece Ajustes y el cambio de tema: no se duplican arriba */
+  .topline-right .iconbtn {
+    display: none;
   }
   .appbar-save {
     margin-top: 8px;
@@ -2145,6 +2163,12 @@ input[type="checkbox"] {
   }
   .capture-hint {
     display: inline;
+  }
+}
+/* Con teclado y puntero fino: la lista de atajos tiene sentido. */
+@media (hover: hover) and (pointer: fine) {
+  .menu-section--keys {
+    display: block;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
@@ -2254,6 +2278,7 @@ input[type="checkbox"] {
 <a class="skip-link" href="#main-content">Ir al contenido</a>
 <div id="app"></div>
 <div id="announcement" class="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+<div id="sr-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
 <noscript><style>#app{display:none}</style><div class="noscript"><h1>Siguiente necesita JavaScript.</h1><p>Actívalo en tu navegador para capturar tareas y registrar sesiones. No se envían datos a servidores en la versión local.</p></div></noscript>
 <script>
 /* Siguiente Core — modelo puro, sin DOM, red ni persistencia. */
@@ -2304,9 +2329,14 @@ input[type="checkbox"] {
     return s.sessions.find((x) => !x.endedAt) || null;
   }
   function closedSessions(s) {
-    return s.sessions
-      .filter((x) => x.endedAt)
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+    return newestFirst(s.sessions.filter((x) => x.endedAt));
+  }
+  // ordena de la sesión más reciente a la más antigua leyendo cada marca una sola vez
+  function newestFirst(xs) {
+    return xs
+      .map((x) => [Date.parse(x.startedAt), x])
+      .sort((a, b) => b[0] - a[0])
+      .map((pair) => pair[1]);
   }
   function inbox(s) {
     return s.tasks
@@ -2555,23 +2585,29 @@ input[type="checkbox"] {
     if (!stamp(until)) return 0;
     return Math.max(0, Date.parse(until) - Date.parse(x.startedAt) - (x.pausedMs || 0));
   }
+  // filtra antes de ordenar: solo se ordena el tramo pedido, con el mismo orden de siempre
   function sessionsBetween(s, from, to) {
-    return closedSessions(s).filter(
-      (x) =>
-        Date.parse(x.startedAt) >= Date.parse(from) && Date.parse(x.startedAt) < Date.parse(to),
+    const start = Date.parse(from);
+    const end = Date.parse(to);
+    return newestFirst(
+      s.sessions.filter((x) => {
+        const at = Date.parse(x.startedAt);
+        return !!x.endedAt && at >= start && at < end;
+      }),
     );
   }
   function sessionsTotalDuration(xs, iso) {
     return xs.reduce((total, x) => total + sessionDuration(x, iso || x.endedAt), 0);
   }
+  // los totales no dependen del orden: se suman sin ordenar el historial
   function taskTotalDuration(s, id) {
     return sessionsTotalDuration(
-      closedSessions(s).filter((x) => x.taskId === id),
+      s.sessions.filter((x) => x.endedAt && x.taskId === id),
       null,
     );
   }
   function sessionStats(s) {
-    const xs = closedSessions(s);
+    const xs = s.sessions.filter((x) => x.endedAt);
     return {
       count: xs.length,
       totalMs: sessionsTotalDuration(xs, null),
@@ -3377,6 +3413,20 @@ input[type="checkbox"] {
     var d = new Date(iso);
     return d.getHours() + ":" + pad(d.getMinutes());
   }
+  // mes local 'YYYY-MM' de una marca ISO
+  function monthOf(iso) {
+    var d = new Date(iso);
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1);
+  }
+  // solo la primera letra en mayúscula, como se escribe en español: 'Octubre de 2026'
+  function capitalize(text) {
+    return text ? text.charAt(0).toUpperCase() + text.slice(1) : text;
+  }
+  // tamaño del titular según su largo, para que la acción y sus botones sigan a la vista
+  function heroSize(text) {
+    var n = String(text || "").length;
+    return n > 180 ? " hero--long hero--xlong" : n > 120 ? " hero--long" : "";
+  }
 
   // ---------- estado de la aplicación ----------
   var STATE = Core.emptyState(); // única fuente de verdad
@@ -3740,6 +3790,8 @@ input[type="checkbox"] {
     if (!r.ok) {
       VIEW.rescheduleError = r.error;
       render();
+      var field = document.getElementById("rs-date");
+      if (field) field.focus();
       return;
     }
     VIEW = { name: "hoy" };
@@ -3793,12 +3845,20 @@ input[type="checkbox"] {
       now(),
     );
     if (!r.ok) {
+      var titleText = (title ? title.value : task.title || "").trim();
       VIEW.defineError = r.error;
+      // el campo que causa el error: nombre vacío o largo, o acción vacía
+      VIEW.defineField =
+        !titleText || titleText.length > 240
+          ? "d-title"
+          : !(n && n.value.trim())
+            ? "d-next"
+            : null;
       VIEW.draftNext = n ? n.value : "";
       VIEW.draftTitle = title ? title.value : task.title;
       VIEW.draftOutcome = outcome ? outcome.value : task.outcome;
       render();
-      var el = document.getElementById("d-next");
+      var el = document.getElementById(VIEW.defineField || "d-next");
       if (el) el.focus();
       return;
     }
@@ -3827,8 +3887,11 @@ input[type="checkbox"] {
         error.textContent = r.error;
         error.hidden = false;
       }
-      if (next && !next.value.trim()) next.focus();
-      else announce(r.error);
+      if (next && !next.disabled && !next.value.trim()) {
+        next.setAttribute("aria-invalid", "true");
+        next.setAttribute("aria-describedby", "close-error");
+        next.focus();
+      } else announce(r.error);
       return;
     }
     stopElapsed();
@@ -4021,6 +4084,8 @@ input[type="checkbox"] {
     arrow: svg('<path d="M5 12h14M13 6l6 6-6 6"/>'),
     up: svg('<path d="M12 19V5M6 11l6-6 6 6"/>'),
     left: svg('<path d="M19 12H5M11 6l-6 6 6 6"/>'),
+    prev: svg('<path d="m15 6-6 6 6 6"/>'),
+    next: svg('<path d="m9 6 6 6-6 6"/>'),
     play: svg('<path d="m8 5 11 7-11 7V5Z"/>'),
     pause: svg('<path d="M8 5v14M16 5v14"/>'),
     check: svg('<path d="m5 12 4 4L19 6"/>'),
@@ -4070,9 +4135,53 @@ input[type="checkbox"] {
     try {
       localStorage.setItem("siguiente.theme", value);
     } catch (e) {}
-    var meta = document.querySelector('meta[name="theme-color"]');
-    if (meta) meta.setAttribute("content", isDark() ? "#171513" : "#f5f3ee");
     render();
+  }
+  // pinta la barra del navegador con el fondo del tema efectivo
+  function paintThemeColor() {
+    var color = isDark() ? "#171513" : "#f5f3ee";
+    document.querySelectorAll('meta[name="theme-color"]').forEach(function (m) {
+      if (m.getAttribute("content") !== color) m.setAttribute("content", color);
+    });
+  }
+  // aviso solo para lectores de pantalla, en una región fija que nunca se repinta
+  var srTimer = null;
+  function srAnnounce(message, delay) {
+    var el = document.getElementById("sr-status");
+    if (!el || !message) return;
+    clearTimeout(srTimer);
+    srTimer = setTimeout(function () {
+      // el mismo texto dos veces no se anuncia: se alterna un espacio fino
+      el.textContent = el.textContent === message ? message + "\u00a0" : message;
+    }, delay || 0);
+  }
+  // título de la pestaña: la sección actual y, durante una sesión, la acción en curso
+  var lastTitle = null;
+  function pageTitle() {
+    var open = Core.openSession(STATE);
+    if (VIEW.menu) return "Ajustes · Siguiente";
+    if ((VIEW.name === "sesion" || VIEW.name === "cerrar") && open)
+      return (
+        (VIEW.name === "cerrar"
+          ? "Cierre de sesión"
+          : open.pausedAt
+            ? "En pausa"
+            : "En sesión") +
+        ": " +
+        open.action +
+        " · Siguiente"
+      );
+    var names = {
+      bandeja: "Bandeja",
+      semana: "Semana",
+      progreso: "Progreso",
+      definir: "Editar tarea",
+      ajustar: "Ajustar tarea",
+      reprogramar: "Mover a otro día",
+    };
+    return names[VIEW.name]
+      ? names[VIEW.name] + " · Siguiente"
+      : "Siguiente · Un paso a la vez";
   }
   function announce(message) {
     var el = document.getElementById("announcement");
@@ -4185,12 +4294,18 @@ input[type="checkbox"] {
     );
   }
 
+  // atributos de un campo con error: lo marca y lo une al mensaje que lo explica
+  function invalidAttrs(invalid, errorId) {
+    return invalid
+      ? ' aria-invalid="true" aria-describedby="' + errorId + '"'
+      : "";
+  }
+
   // ---------- render ----------
   var lastViewKey = null; // la entrada de vista solo se anima al cambiar de sección
   function render() {
     var app = document.getElementById("app");
-    var themeMeta = document.querySelector('meta[name="theme-color"]');
-    if (themeMeta) themeMeta.content = isDark() ? "#171513" : "#f5f3ee";
+    paintThemeColor();
     var announcementNode = document.getElementById("announcement");
     var previousWorkspace = document.getElementById("main-content");
     var previousScroll = previousWorkspace ? previousWorkspace.scrollTop : 0;
@@ -4257,6 +4372,12 @@ input[type="checkbox"] {
     var statusSlot = document.getElementById("status-message-slot");
     if (statusSlot && announcementNode)
       statusSlot.appendChild(announcementNode);
+    // solo se escribe si cambió: no pisa un título puesto desde fuera
+    var title = pageTitle();
+    if (title !== lastTitle) {
+      document.title = title;
+      lastTitle = title;
+    }
     wire();
     var currentWorkspace = document.getElementById("main-content");
     if (!entering) {
@@ -4490,7 +4611,7 @@ input[type="checkbox"] {
         '</span></div><p class="task-context">' +
         esc(first.task.title) +
         '</p><h2 class="hero' +
-        (first.task.nextAction.length > 120 ? " hero--long" : "") +
+        heroSize(first.task.nextAction) +
         '">' +
         esc(first.task.nextAction) +
         "</h2>" +
@@ -4570,7 +4691,7 @@ input[type="checkbox"] {
       tasks = all.slice(0, limit);
     var html =
       sessionBanner() +
-      '<div class="inbox-controls"><div class="inbox-search">' +
+      '<div class="inbox-controls"><div class="search-field">' +
       ICON.search +
       '<label class="sr-only" for="inbox-search">Buscar tareas</label><input class="log-search" id="inbox-search" type="search" placeholder="Buscar una tarea…" value="' +
       esc(VIEW.inboxQuery || "") +
@@ -4593,11 +4714,17 @@ input[type="checkbox"] {
           );
         })
         .join("") +
-      '</select></div><p class="results-count" aria-live="polite">' +
+      '</select></div><p class="results-count">' +
       all.length +
       (all.length === 1 ? " tarea" : " tareas") +
-      (query ? " encontradas" : "") +
+      (query ? (all.length === 1 ? " encontrada" : " encontradas") : "") +
       "</p>";
+    VIEW.inboxSummary =
+      query && !all.length
+        ? "No encontramos esa tarea."
+        : all.length +
+          (all.length === 1 ? " tarea" : " tareas") +
+          (query ? (all.length === 1 ? " encontrada" : " encontradas") : "");
     if (!tasks.length) {
       return (
         html +
@@ -4714,7 +4841,7 @@ input[type="checkbox"] {
     html += "</ul>";
     if (all.length > limit)
       html +=
-        '<button type="button" class="btn btn--quiet more-button" data-action="inbox-more">Mostrar más tareas (' +
+        '<button type="button" class="btn btn--quiet more-button" id="inbox-more" data-action="inbox-more">Mostrar más tareas (' +
         (all.length - limit) +
         ")</button>";
     return html;
@@ -4738,10 +4865,12 @@ input[type="checkbox"] {
         : "") +
       '<label class="field" for="d-title"><span>Nombre de la tarea</span><input id="d-title" type="text" maxlength="240" value="' +
       esc(title) +
-      '" required></label><label class="field" for="d-next"><span>Siguiente acción</span><input id="d-next" type="text" maxlength="500" value="' +
+      '" required' +
+      invalidAttrs(VIEW.defineError && VIEW.defineField === "d-title", "define-error") +
+      '></label><label class="field" for="d-next"><span>Siguiente acción</span><input id="d-next" type="text" maxlength="500" value="' +
       esc(action) +
       '" required' +
-      (VIEW.defineError ? ' aria-describedby="define-error"' : "") +
+      invalidAttrs(VIEW.defineError && VIEW.defineField === "d-next", "define-error") +
       '></label><p class="action-hint">Piensa en el primer paso, no en toda la tarea.</p><label class="field" for="d-outcome"><span>¿Para qué? <small>Opcional</small></span><input id="d-outcome" type="text" maxlength="500" value="' +
       esc(outcome) +
       '" placeholder="El resultado que quieres conseguir"></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Guardar cambios ' +
@@ -4808,7 +4937,9 @@ input[type="checkbox"] {
       localPlus(1) +
       '" value="' +
       esc(VIEW.rescheduleDraft || localPlus(1)) +
-      '" required></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Mover a ese día ' +
+      '" required' +
+      invalidAttrs(!!VIEW.rescheduleError, "reschedule-error") +
+      '></label><div class="stack stack--form"><button type="submit" class="btn btn--primary">Mover a ese día ' +
       ICON.arrow +
       '</button><button type="button" class="link" data-action="adjust" data-id="' +
       esc(task.id) +
@@ -4843,7 +4974,7 @@ input[type="checkbox"] {
       '</span><p class="session-task-name">' +
       esc(s.title) +
       '</p><h1 id="page-title" class="hero' +
-      (s.action.length > 120 ? " hero--long" : "") +
+      heroSize(s.action) +
       '" tabindex="-1">' +
       esc(s.action) +
       '</h1></div><div class="tempo-stage' +
@@ -5026,18 +5157,19 @@ input[type="checkbox"] {
       return html;
     }
 
-    VIEW.logMonth = VIEW.logMonth || localDate().slice(0, 7);
-    var month = VIEW.logMonth;
-    var monthLabel = new Intl.DateTimeFormat("es", {
-      month: "long",
-      year: "numeric",
-    }).format(parseLocalDate(month + "-01"));
+    // sin mes elegido, el de la sesión más reciente: tras un cambio de mes el registro no aparece vacío
+    VIEW.logMonth = VIEW.logMonth || monthOf(log[0].startedAt);
+    var month = VIEW.logMonth,
+      isLatest = month >= localDate().slice(0, 7);
+    var monthLabel = capitalize(
+      new Intl.DateTimeFormat("es", {
+        month: "long",
+        year: "numeric",
+      }).format(parseLocalDate(month + "-01")),
+    );
     var query = foldSearch((VIEW.logQuery || "").trim());
     var filtered = log.filter(function (x) {
-      var started = new Date(x.startedAt);
-      var sessionMonth =
-        started.getFullYear() + "-" + pad(started.getMonth() + 1);
-      if (sessionMonth !== month) return false;
+      if (monthOf(x.startedAt) !== month) return false;
       var t = Core.taskById(STATE, x.taskId);
       return foldSearch(
         [
@@ -5052,15 +5184,23 @@ input[type="checkbox"] {
     html +=
       '<p class="section-label">Registro</p>' +
       '<div class="log-controls"><div class="log-month">' +
-      '<button type="button" class="log-month-btn" data-action="log-prev" aria-label="Mes anterior">‹</button>' +
-      '<span aria-live="polite">' +
+      '<button type="button" class="log-month-btn" id="log-prev" data-action="log-prev" aria-label="Mes anterior">' +
+      ICON.prev +
+      "</button>" +
+      "<span>" +
       esc(monthLabel) +
       "</span>" +
-      '<button type="button" class="log-month-btn" data-action="log-next" aria-label="Mes siguiente">›</button></div>' +
+      '<button type="button" class="log-month-btn" id="log-next" data-action="log-next" aria-label="Mes siguiente"' +
+      (isLatest ? ' aria-disabled="true"' : "") +
+      ">" +
+      ICON.next +
+      "</button></div>" +
+      '<div class="search-field">' +
+      ICON.search +
       '<input id="log-search" class="log-search" type="search" autocomplete="off" ' +
       'placeholder="Buscar en el registro" aria-label="Buscar en el registro" value="' +
       esc(VIEW.logQuery || "") +
-      '"></div>' +
+      '"></div></div>' +
       '<ul class="log" data-month="' +
       esc(monthLabel) +
       '">';
@@ -5089,12 +5229,26 @@ input[type="checkbox"] {
         "</li>";
     });
     html += "</ul>";
+    VIEW.logSummary =
+      monthLabel +
+      ": " +
+      (filtered.length
+        ? filtered.length +
+          (filtered.length === 1 ? " sesión" : " sesiones") +
+          (query ? (filtered.length === 1 ? " encontrada" : " encontradas") : "")
+        : query
+          ? "ninguna sesión coincide"
+          : "sin sesiones");
     if (!filtered.length)
       html +=
-        '<p class="log-empty" role="status">No hay sesiones que coincidan en este mes.</p>';
+        '<p class="log-empty">' +
+        (query
+          ? "No hay sesiones que coincidan en este mes."
+          : "No hay sesiones registradas en este mes.") +
+        "</p>";
     if (filtered.length > (VIEW.logLimit || 50))
       html +=
-        '<button type="button" class="btn btn--quiet more-button" data-action="log-more">Mostrar más sesiones</button>';
+        '<button type="button" class="btn btn--quiet more-button" id="log-more" data-action="log-more">Mostrar más sesiones</button>';
     if (filtered.length)
       html +=
         '<button type="button" class="link" data-action="print">Imprimir este registro</button>';
@@ -5112,7 +5266,9 @@ input[type="checkbox"] {
       ]
         .map(function (t) {
           return (
-            '<button type="button" data-action="theme-set" data-value="' +
+            '<button type="button" id="theme-opt-' +
+            t[0] +
+            '" data-action="theme-set" data-value="' +
             t[0] +
             '" aria-pressed="' +
             (THEME === t[0]) +
@@ -5175,7 +5331,7 @@ input[type="checkbox"] {
         "</div></section>";
     }
     html +=
-      '<section class="menu-section"><h2>Atajos de teclado</h2><ul class="shortcut-list"><li><kbd>N</kbd>Nueva tarea</li><li><kbd>Espacio</kbd>Empezar desde Hoy</li><li><kbd>P</kbd>Pausar o reanudar</li><li><kbd>Esc</kbd>Volver a Hoy</li></ul></section><section class="menu-section"><h2>Empezar de nuevo</h2><p>Esta acción borra las tareas, los planes y las sesiones. Antes de hacerlo, exporta una copia.</p>';
+      '<section class="menu-section menu-section--keys"><h2>Atajos de teclado</h2><ul class="shortcut-list"><li><kbd>N</kbd>Nueva tarea</li><li><kbd>Espacio</kbd>Empezar desde Hoy</li><li><kbd>P</kbd>Pausar o reanudar</li><li><kbd>Esc</kbd>Volver a Hoy</li></ul></section><section class="menu-section"><h2>Empezar de nuevo</h2><p>Esta acción borra las tareas, los planes y las sesiones. Antes de hacerlo, exporta una copia.</p>';
     if (!VIEW.confirmWipe)
       html +=
         '<button type="button" class="btn btn--danger" data-action="wipe-ask">Borrar todos los datos ' +
@@ -5217,7 +5373,7 @@ input[type="checkbox"] {
         e.preventDefault();
         if (cap.value.trim()) doCapture(cap.value);
       });
-    function wireSearch(id, key) {
+    function wireSearch(id, key, summary) {
       var input = document.getElementById(id);
       if (!input) return;
       input.addEventListener("input", function () {
@@ -5232,10 +5388,11 @@ input[type="checkbox"] {
           next.focus({ preventScroll: true });
           next.setSelectionRange(start, end);
         }
+        srAnnounce(VIEW[summary], 700);
       });
     }
-    wireSearch("inbox-search", "inboxQuery");
-    wireSearch("log-search", "logQuery");
+    wireSearch("inbox-search", "inboxQuery", "inboxSummary");
+    wireSearch("log-search", "logQuery", "logSummary");
     var filter = document.getElementById("inbox-filter");
     if (filter)
       filter.addEventListener("change", function () {
@@ -5245,6 +5402,7 @@ input[type="checkbox"] {
         render();
         var next = document.getElementById("inbox-filter");
         if (next) next.focus();
+        srAnnounce(VIEW.inboxSummary, 100);
       });
     var imp = document.getElementById("importfile");
     if (imp)
@@ -5271,6 +5429,11 @@ input[type="checkbox"] {
           '[name="session-progress"]:checked',
         );
         doCloseSession(selected ? selected.value : "");
+      });
+    var closeNext = document.getElementById("cl-next");
+    if (closeNext)
+      closeNext.addEventListener("input", function () {
+        if (closeNext.value.trim()) closeNext.removeAttribute("aria-invalid");
       });
     var finished = document.getElementById("cl-finished");
     if (finished)
@@ -5419,11 +5582,13 @@ input[type="checkbox"] {
         render();
       }
     } else if (action === "log-prev" || action === "log-next") {
+      if (btn.getAttribute("aria-disabled") === "true") return;
       var month = parseLocalDate(VIEW.logMonth + "-01");
       month.setMonth(month.getMonth() + (action === "log-prev" ? -1 : 1));
       VIEW.logMonth = month.getFullYear() + "-" + pad(month.getMonth() + 1);
       VIEW.logLimit = 50;
       render();
+      srAnnounce(VIEW.logSummary, 100);
     } else if (action === "inbox-more") {
       VIEW.inboxLimit = (VIEW.inboxLimit || 30) + 30;
       render();

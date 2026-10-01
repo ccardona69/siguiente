@@ -134,6 +134,15 @@ svg {
   height: 20px;
   flex: none;
 }
+/* Titulares con líneas equilibradas y párrafos sin una palabra sola al final. */
+h1,
+h2,
+.menu-intro {
+  text-wrap: balance;
+}
+p {
+  text-wrap: pretty;
+}
 .sr-only {
   position: absolute;
   width: 1px;
@@ -181,10 +190,9 @@ svg {
   flex-direction: column;
   height: 100vh;
   height: 100dvh;
-  padding: 36px 20px 24px;
+  padding: 36px 16px 24px;
   border-right: 1px solid var(--line);
   background: var(--sidebar);
-  padding-inline: 16px;
   display: none;
 }
 .brand {
@@ -300,8 +308,6 @@ svg {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior-y: contain;
-  padding-left: 16px;
-  padding-right: 16px;
   padding: max(20px, env(safe-area-inset-top))
     max(16px, env(safe-area-inset-right)) 24px
     max(16px, env(safe-area-inset-left));
@@ -359,16 +365,14 @@ svg {
 }
 .appbar h1 {
   margin: 0;
-  font: 400 42px/1.14 var(--display);
+  font: 400 clamp(28px, 8vw, 32px)/1.14 var(--display);
   letter-spacing: -0.045em;
   overflow-wrap: anywhere;
-  font-size: clamp(28px, 8vw, 32px);
 }
 .appbar-subtitle {
-  margin: 12px 0 0;
+  margin: 8px 0 0;
   max-width: 65ch;
   color: var(--text-dim);
-  margin-top: 8px;
 }
 .mobile-brand {
   display: flex;
@@ -396,14 +400,12 @@ svg {
 .capture-form {
   display: flex;
   align-items: center;
-  margin: 0 0 24px;
-  padding: 6px 6px 6px 16px;
+  margin: 0 0 20px;
+  padding: 6px 6px 6px 12px;
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
   background: var(--surface);
-  padding-left: 12px;
   gap: 8px;
-  margin-bottom: 20px;
 }
 .capture-form:focus-within {
   border-color: var(--accent);
@@ -641,15 +643,19 @@ kbd {
 .hero {
   margin: 0;
   color: var(--text);
-  font: 400 clamp(30px, 3vw, 38px)/1.2 var(--display);
+  font: 400 clamp(28px, 8vw, 32px)/1.2 var(--display);
   letter-spacing: -0.035em;
   overflow-wrap: anywhere;
-  font-size: clamp(28px, 8vw, 32px);
 }
 .hero--long {
   font-size: 26px !important;
   line-height: 1.35;
   letter-spacing: -0.02em;
+}
+.hero--xlong {
+  font-size: 22px !important;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
 }
 .for-outcome {
   margin: 16px 0 0;
@@ -675,11 +681,10 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 24px 0 0;
+  margin: 20px 0 0;
   border-top: 1px solid var(--line);
   color: var(--text-dim);
   font-size: 14px;
-  margin-top: 20px;
   padding-top: 16px;
 }
 .focus-foot svg {
@@ -704,11 +709,9 @@ kbd {
   margin-bottom: 16px;
 }
 .empty-state h2 {
-  margin: 12px 0 0;
-  font: 400 36px/1.2 var(--display);
+  margin: 10px 0 0;
+  font: 400 30px/1.2 var(--display);
   letter-spacing: -0.035em;
-  margin-top: 10px;
-  font-size: 30px;
 }
 .empty-state p {
   max-width: 43ch;
@@ -811,8 +814,7 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 28px 0 12px;
-  margin-top: 24px;
+  margin: 24px 0 12px;
 }
 .section-heading h2,
 .section-label {
@@ -896,12 +898,12 @@ kbd {
   align-items: stretch;
   gap: 12px;
 }
-.inbox-search {
+.search-field {
   position: relative;
   flex: 1;
   max-width: none;
 }
-.inbox-search > svg {
+.search-field > svg {
   position: absolute;
   left: 14px;
   top: 13px;
@@ -919,7 +921,7 @@ kbd {
   color: var(--text);
   font-size: 16px;
 }
-.inbox-search .log-search {
+.search-field .log-search {
   padding-left: 44px;
 }
 .filter-select {
@@ -1139,6 +1141,10 @@ kbd {
 .field textarea {
   resize: vertical;
 }
+.field input[aria-invalid="true"],
+.task .capture[aria-invalid="true"] {
+  border-color: var(--red);
+}
 .field small {
   font-size: 14px;
   color: var(--text-dim);
@@ -1174,11 +1180,10 @@ kbd {
 .week-stack {
   display: grid;
   gap: 0;
-  padding: 0 24px;
+  padding: 0 20px;
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--surface);
-  padding-inline: 20px;
 }
 .day {
   display: grid;
@@ -1306,7 +1311,6 @@ kbd {
 }
 .figure span {
   display: block;
-  margin-top: 8px;
   color: var(--text-dim);
   font-size: 14px;
   margin: 0;
@@ -1330,7 +1334,6 @@ kbd {
 }
 .log-month span {
   text-align: center;
-  text-transform: capitalize;
   font-size: 16px;
   flex: 1;
   min-width: 0;
@@ -1345,13 +1348,20 @@ kbd {
   border-radius: 8px;
   color: var(--text);
   background: var(--surface);
-  font-size: 24px;
 }
-.log-controls .log-search {
+.log-month-btn:hover {
+  background: var(--surface-2);
+}
+.log-month-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.log-month-btn[aria-disabled="true"]:hover {
+  background: var(--surface);
+}
+.log-controls .search-field {
+  flex: 1 1 180px;
   min-width: 180px;
-  max-width: none;
-  flex: 1;
-  width: 100%;
 }
 .log {
   padding: 0;
@@ -1447,11 +1457,10 @@ kbd {
 }
 .session {
   max-width: 748px;
-  margin: 24px auto 0;
+  margin: 8px auto 0;
   border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--surface);
-  margin-top: 8px;
   padding: 20px;
 }
 .session-heading {
@@ -1533,9 +1542,8 @@ kbd {
 }
 .close-screen h1 {
   margin: 12px 0;
-  font: 400 38px/1.2 var(--display);
+  font: 400 32px/1.2 var(--display);
   letter-spacing: -0.03em;
-  font-size: 32px;
 }
 .close-screen > p {
   color: var(--text-dim);
@@ -1611,6 +1619,10 @@ input[type="checkbox"] {
   padding-top: 24px;
   margin-top: 24px;
   border-top: 1px solid var(--line);
+}
+/* Los atajos de teclado solo se listan con puntero fino (ver al final). */
+.menu-section--keys {
+  display: none;
 }
 .menu-section h2 {
   margin: 0 0 12px;
@@ -1696,7 +1708,7 @@ input[type="checkbox"] {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
-  padding: 8px 12px max(8px, env(safe-area-inset-bottom));
+  padding-block: 8px max(8px, env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--sidebar);
   padding-inline: max(8px, env(safe-area-inset-left))
@@ -1913,7 +1925,7 @@ input[type="checkbox"] {
     align-items: center;
     gap: 16px;
   }
-  .inbox-search {
+  .inbox-controls .search-field {
     max-width: 440px;
   }
   .filter-select {
@@ -1972,9 +1984,8 @@ input[type="checkbox"] {
     flex: 0 1 auto;
     min-width: 155px;
   }
-  .log-controls .log-search {
+  .log-controls .search-field {
     max-width: 360px;
-    width: auto;
   }
   .log > li {
     padding: 24px;
@@ -2094,9 +2105,14 @@ input[type="checkbox"] {
   }
   .topline {
     margin-bottom: 24px;
+    min-height: 44px;
   }
   .topline-right {
     gap: 16px;
+  }
+  /* la barra lateral ya ofrece Ajustes y el cambio de tema: no se duplican arriba */
+  .topline-right .iconbtn {
+    display: none;
   }
   .appbar-save {
     margin-top: 8px;
@@ -2133,6 +2149,12 @@ input[type="checkbox"] {
   }
   .capture-hint {
     display: inline;
+  }
+}
+/* Con teclado y puntero fino: la lista de atajos tiene sentido. */
+@media (hover: hover) and (pointer: fine) {
+  .menu-section--keys {
+    display: block;
   }
 }
 @media (prefers-reduced-motion: no-preference) {

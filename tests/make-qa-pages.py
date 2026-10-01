@@ -47,7 +47,7 @@ for kind in ['workflow','recovery','quota','tabs','reload','pagination','print']
 
 scenarios={
  'sample-today':"click('[data-action=\"sample\"]');",
- 'sample-dark':"click('[data-action=\"sample\"]');click('#theme-toggle-top');",
+ 'sample-dark':"click('[data-action=\"sample\"]');click('[data-action=\"theme-toggle\"]');",
  'inbox':"click('[data-action=\"sample\"]');go('bandeja');",
  'inbox-edit':"click('[data-action=\"sample\"]');go('bandeja');var last=[...document.querySelectorAll('[data-action=\"edit-inline-action\"]')].at(-1);last.click();type('#inline-action','Escribir tres ideas y elegir una');",
  'inbox-error':"type('#capture','Preparar mi primer borrador');click('.capture-add');click('[data-action=\"save-inline-action\"]');",
