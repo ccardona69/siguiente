@@ -33,6 +33,7 @@ siguiente/
 ├── src/
 │   ├── core.js        # modelo puro y validación: sin DOM, sin red, reloj inyectado
 │   ├── app.js         # persistencia, vistas y eventos
+│   ├── server.js      # lógica del Worker y del Durable Object (usa SiguienteCore)
 │   └── styles.css     # diseño mobile-first responsive y estilos de impresión
 ├── public/
 │   ├── index.html     # versión autónoma generada por build.py (lo que se sirve)
@@ -42,12 +43,12 @@ siguiente/
 │   ├── remote.test.cjs    # pruebas de la API con fetch simulado
 │   ├── ui.test.js         # recorridos automatizados en el navegador
 │   └── make-qa-pages.py   # genera páginas aisladas de prueba en .qa/
-├── build.py           # genera public/index.html desde src/ (solo concatenación)
+├── build.py           # genera public/index.html y worker.dist.js (solo concatenación)
 ├── previews/          # capturas de la interfaz
 ├── QA.md              # alcance y resultados de comprobación de la entrega
-├── worker.js          # Cloudflare Worker: sirve public/ y expone /api/state
-├── worker.tests.js    # pruebas del Worker con un KV simulado (solo Node)
-├── wrangler.jsonc     # config de Cloudflare Workers (Worker + estáticos + KV)
+├── worker.dist.js     # Worker generado: core.js + src/server.js (se despliega)
+├── worker.tests.js    # pruebas del Worker con el almacén simulado (solo Node)
+├── wrangler.jsonc     # config de Cloudflare Workers (Worker + estáticos + DO + KV)
 └── bocetos/           # bocetos históricos de diseño
 ```
 
@@ -64,7 +65,7 @@ paquetes:
 
 ```bash
 node --test tests/*.test.cjs   # 55 pruebas
-node worker.tests.js           # 39 pruebas del Worker
+python build.py && node worker.tests.js   # 30 pruebas del Worker
 ```
 
 Las páginas de QA del navegador se generan con `python tests/make-qa-pages.py`
@@ -98,56 +99,56 @@ El cliente remoto está incluido pero **apagado**: la app no hace peticiones a
 antes del script de la app) y reconstruye. Solo funciona sobre HTTPS y el mismo
 origen; en `file://` y en HTTP sigue siendo solo local.
 
-Contrato esperado — el que ya implementa `worker.js`:
+Contrato — el que implementa `src/server.js` (generado en `worker.dist.js`):
 
 - `GET /api/state`: responde `{ "state": <estado v2 o null> }` y cabecera
-  `ETag`.
-- `PUT /api/state`: recibe el estado completo y la precondición `If-Match`;
-  devuelve un nuevo `ETag`. Conflicto: HTTP 409 con `{ "state": <vigente> }`.
-- Autenticación opcional: token Bearer configurado desde Ajustes cuando la
-  integración está activa; se guarda en `siguiente.token` y viaja solo en la
-  cabecera `Authorization`, nunca en la URL.
+  `ETag` con la revisión que asigna el servidor (`"empty"` si está vacío).
+  Con `If-None-Match` igual al vigente responde `304`.
+- `PUT /api/state`: recibe el estado completo (JSON o gzip) y exige
+  `If-Match` con la revisión conocida (`428` si falta, `409` con
+  `{ "state": <vigente> }` si no coincide). El servidor valida el estado con
+  `SiguienteCore`, lo migra si viene de v1 y asigna la revisión nueva.
+- Autenticación obligatoria: sin `SYNC_TOKEN` configurado la API responde
+  `503` y queda cerrada. El token se guarda en `siguiente.token` y viaja solo
+  en la cabecera `Authorization`, nunca en la URL. Tras 8 intentos fallidos
+  en un minuto responde `429`.
 
-Ojo: el esquema v2 no lleva el campo `revision` que el Worker usa hoy para el
-ETag. Si se activa la sincronización hay que resolver eso primero (añadir
-`revision` al estado o derivar el ETag del contenido en el Worker). Una
-respuesta incompatible no se trata como nube vacía ni se sobrescribe a ciegas.
+El estado vive en un **Durable Object con SQLite**: leer la revisión y
+escribir ocurre en un solo paso atómico y las lecturas siempre ven lo último.
+En la primera lectura con el almacén vacío se adopta el estado heredado de
+**Workers KV** (si valida) como revisión 1; KV queda intacto como respaldo.
 
 ## Publicación
 
-La app se sirve desde **Cloudflare Workers**: `worker.js` entrega los archivos
-de `public/` y atiende `PUT`/`GET /api/state`, que guarda y devuelve el estado
-como blob JSON en **Workers KV**. Sin base de datos ni lógica de dominio en el
-servidor. Sigue sin `package.json` ni `node_modules`: `wrangler` se ejecuta con
-`npx`.
+La app se sirve desde **Cloudflare Workers**: `worker.dist.js` entrega los
+archivos de `public/` y atiende `GET`/`PUT /api/state` sobre el objeto durable
+`StateStore` (SQLite). El servidor valida cada estado con el mismo
+`src/core.js` de la app. Sigue sin `package.json` ni `node_modules`:
+`wrangler` se ejecuta con `npx`.
 
 Desde `C:\Users\dav\siguiente`:
 
 1. `npx wrangler login` — se abre el navegador para autorizar. En PowerShell, si
    `npx` no carga, usa `npx.cmd`.
-2. `npx wrangler kv namespace create SIGUIENTE_KV` — crea el almacén e imprime
-   un `id`. Este repo ya trae el `id` del suyo en `wrangler.jsonc`; repite solo
-   si despliegas en otra cuenta.
-3. *(Opcional)* `npx wrangler secret put SYNC_TOKEN` para exigir
-   `Authorization: Bearer <token>` en `/api/state`.
-4. `npx wrangler deploy` — imprime la URL
-   `https://siguiente.TU-SUBDOMINIO.workers.dev`.
+2. `python build.py` — genera `public/index.html` y `worker.dist.js`.
+3. `npx wrangler secret put SYNC_TOKEN` — obligatorio: sin token la API
+   responde `503`.
+4. `npx wrangler deploy` — crea la migración del Durable Object e imprime la
+   URL `https://siguiente.TU-SUBDOMINIO.workers.dev`. Si despliegas en otra
+   cuenta, recrea antes el namespace KV (`npx wrangler kv namespace create
+   SIGUIENTE_KV`) y actualiza su `id` en `wrangler.jsonc`.
 
 El Worker escribe una línea JSON por petición a la API (evento, código, tamaño;
 nunca el token ni el contenido). Se ven en el panel de Cloudflare → Workers →
 siguiente → Observability, o con `npx wrangler tail`.
 
-### Copias diarias y restauración
+### Copias diarias
 
-Antes del primer guardado de cada día (UTC), el Worker conserva en KV el estado
-que había como `backup.AAAA-MM-DD`; KV las borra solas a los 30 días. Para
-restaurar:
-
-1. `npx wrangler kv key list --binding SIGUIENTE_KV --prefix backup. --remote`
-2. `npx wrangler kv key get backup.AAAA-MM-DD --binding SIGUIENTE_KV --remote --text | Out-File -Encoding utf8 restaurar.json`
-   (usa `Out-File`, no `>`: en PowerShell `>` guarda en UTF-16)
-3. En la app: **Ajustes → Importar** y elige `restaurar.json`. Solo aplica si el
-   blob guardado es del esquema v2.
+Antes del primer guardado de cada día (UTC), el objeto durable conserva el
+estado que había en su tabla `backups` (una fila por día). La consulta y la
+restauración desde Ajustes llegan en una fase siguiente; mientras tanto, la
+forma más directa de restaurar es exportar el JSON desde la app en otro
+dispositivo y reimportarlo en **Ajustes → Importar**.
 
 ### Cabeceras de seguridad
 

@@ -1,22 +1,31 @@
 // Worker de "Siguiente": sirve public/ como estáticos y expone /api/state para sincronizar.
-// El estado se guarda como un blob JSON en KV. Sin dependencias ni npm install;
-// public/index.html se genera con "python build.py" desde src/.
+// El estado vive en un Durable Object con SQLite (revisión atómica, lecturas al día).
+// Sin dependencias ni npm install; worker.dist.js se genera con "python build.py" desde src/.
 {
   "name": "siguiente",
   "compatibility_date": "2026-09-08",
-  "main": "worker.js",
+  "main": "worker.dist.js",
   "assets": {
     "directory": "./public",
     "binding": "ASSETS",
     "run_worker_first": ["/api/*"]
   },
+  "durable_objects": {
+    "bindings": [
+      { "name": "STATE_STORE", "class_name": "StateStore" }
+    ]
+  },
+  "migrations": [
+    { "tag": "v1", "new_sqlite_classes": ["StateStore"] }
+  ],
   "kv_namespaces": [
+    // Solo para adoptar el estado heredado en la primera lectura; queda como respaldo.
     // Creado con:  npx wrangler kv namespace create SIGUIENTE_KV
     { "binding": "SIGUIENTE_KV", "id": "deace42306cf4300ac7f4bb578ad3d80" }
   ],
   // Registros del Worker en el panel de Cloudflare (una línea JSON por petición, sin token ni datos)
   "observability": { "enabled": true }
-  // Token de acceso opcional (recomendado si la URL es pública):
+  // Token de acceso OBLIGATORIO: sin él la API responde 503 y queda cerrada.
   //   npx wrangler secret put SYNC_TOKEN
   // Se configura en Menú → Sincronización y solo se envía por Authorization.
 }
