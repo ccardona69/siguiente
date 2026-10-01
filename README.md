@@ -41,7 +41,8 @@ siguiente/
 │   ├── core.test.cjs      # pruebas del modelo (node:test)
 │   ├── remote.test.cjs    # pruebas de la API con fetch simulado
 │   ├── ui.test.js         # recorridos automatizados en el navegador
-│   └── make-qa-pages.py   # genera páginas aisladas de prueba en .qa/
+│   ├── make-qa-pages.py   # genera páginas aisladas de prueba en .qa/
+│   └── run-qa-cdp.cjs     # abre una página de .qa/ en Chrome sin ventana y lee QA PASS/FAIL
 ├── build.py           # genera public/index.html desde src/ (solo concatenación)
 ├── previews/          # capturas de la interfaz
 ├── QA.md              # alcance y resultados de comprobación de la entrega
@@ -63,7 +64,7 @@ Pruebas del modelo y del cliente remoto, con Node 18 o superior, sin instalar
 paquetes:
 
 ```bash
-node --test tests/*.test.cjs   # 55 pruebas
+node --test tests/*.test.cjs   # 57 pruebas
 node worker.tests.js           # 39 pruebas del Worker
 ```
 
@@ -71,6 +72,15 @@ Las páginas de QA del navegador se generan con `python tests/make-qa-pages.py`
 en `.qa/` (claves `siguiente.qa.*`, datos ficticios, sincronización
 desactivada). Cada prueba se abre en un perfil temporal aislado; el marcador
 `QA PASS` en el título confirma que el recorrido llegó al final. Ver `QA.md`.
+
+Para recorrerlas sin instalar nada, sirve `.qa/` con cualquier servidor estático
+y abre cada página con el ejecutor incluido (`QA_CHROME` indica la ruta de
+Chrome o Chromium si no es la de Windows por defecto):
+
+```bash
+python -m http.server 8790 -d .qa
+node tests/run-qa-cdp.cjs http://localhost:8790/ui-workflow.html
+```
 
 ## Tus datos
 
@@ -153,8 +163,9 @@ restaurar:
 
 `public/_headers` añade a los estáticos `X-Content-Type-Options`,
 `X-Frame-Options`, `Referrer-Policy` y una `Content-Security-Policy` cerrada:
-solo scripts y estilos propios o en línea, `connect-src 'self'`, sin marcos ni
-formularios. `index.html` además lleva la misma CSP en una etiqueta `<meta>`,
+solo scripts y estilos propios o en línea, imágenes propias o `data:` (el icono
+de la pestaña va en línea dentro de `index.html`), `connect-src 'self'`, sin
+marcos ni formularios. `index.html` además lleva la misma CSP en una etiqueta `<meta>`,
 así la protección también aplica al abrirlo como archivo local. `file://` no
 recibe las cabeceras: solo las aplica Cloudflare.
 
