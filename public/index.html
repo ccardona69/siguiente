@@ -2288,9 +2288,14 @@ input[type="checkbox"] {
     return s.sessions.find((x) => !x.endedAt) || null;
   }
   function closedSessions(s) {
-    return s.sessions
-      .filter((x) => x.endedAt)
-      .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+    return newestFirst(s.sessions.filter((x) => x.endedAt));
+  }
+  // ordena de la sesión más reciente a la más antigua leyendo cada marca una sola vez
+  function newestFirst(xs) {
+    return xs
+      .map((x) => [Date.parse(x.startedAt), x])
+      .sort((a, b) => b[0] - a[0])
+      .map((pair) => pair[1]);
   }
   function inbox(s) {
     return s.tasks
@@ -2539,23 +2544,29 @@ input[type="checkbox"] {
     if (!stamp(until)) return 0;
     return Math.max(0, Date.parse(until) - Date.parse(x.startedAt) - (x.pausedMs || 0));
   }
+  // filtra antes de ordenar: solo se ordena el tramo pedido, con el mismo orden de siempre
   function sessionsBetween(s, from, to) {
-    return closedSessions(s).filter(
-      (x) =>
-        Date.parse(x.startedAt) >= Date.parse(from) && Date.parse(x.startedAt) < Date.parse(to),
+    const start = Date.parse(from);
+    const end = Date.parse(to);
+    return newestFirst(
+      s.sessions.filter((x) => {
+        const at = Date.parse(x.startedAt);
+        return !!x.endedAt && at >= start && at < end;
+      }),
     );
   }
   function sessionsTotalDuration(xs, iso) {
     return xs.reduce((total, x) => total + sessionDuration(x, iso || x.endedAt), 0);
   }
+  // los totales no dependen del orden: se suman sin ordenar el historial
   function taskTotalDuration(s, id) {
     return sessionsTotalDuration(
-      closedSessions(s).filter((x) => x.taskId === id),
+      s.sessions.filter((x) => x.endedAt && x.taskId === id),
       null,
     );
   }
   function sessionStats(s) {
-    const xs = closedSessions(s);
+    const xs = s.sessions.filter((x) => x.endedAt);
     return {
       count: xs.length,
       totalMs: sessionsTotalDuration(xs, null),
