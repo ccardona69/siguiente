@@ -1,6 +1,7 @@
-/* worker.tests.js — pruebas del Worker de "Siguiente" con un KV simulado.
-   Se ejecuta con "node worker.tests.js" y termina con código 1 si algo falla.
-   Sin dependencias: Request, Response y Headers vienen de Node. */
+/* worker.tests.js — pruebas del Worker de "Siguiente" con el almacén simulado.
+   Ejecuta primero "python build.py" (genera worker.dist.js) y luego "node worker.tests.js";
+   termina con código 1 si algo falla. Sin dependencias: Request, Response y Headers
+   vienen de Node. */
 'use strict';
 
 const registry = [];
@@ -20,50 +21,73 @@ function assertEqual(a, b, msg) {
   if (a !== b) throw new Error((msg || 'no coinciden') + ': ' + JSON.stringify(a) + ' vs ' + JSON.stringify(b));
 }
 
-// KV simulado con el mismo contrato asíncrono que Workers KV; permite forzar fallos
-function makeKv() {
-  const kv = {
-    store: new Map(),
-    options: new Map(),
-    failGet: false,
-    failPut: false,
-    failPutPrefix: null,
+// KV simulado para el traspaso del estado heredado
+function makeKv(entries = {}) {
+  const store = new Map(Object.entries(entries));
+  return {
+    store,
     async get(key) {
-      if (kv.failGet) throw new Error('KV get caído');
-      return kv.store.has(key) ? kv.store.get(key) : null;
+      return store.has(key) ? store.get(key) : null;
     },
-    async put(key, value, options) {
-      if (kv.failPut || (kv.failPutPrefix && key.startsWith(kv.failPutPrefix))) throw new Error('KV put caído');
-      kv.store.set(key, value);
-      kv.options.set(key, options);
-    }
+    async put(key, value) {
+      store.set(key, value);
+    },
   };
-  return kv;
 }
 
-// entorno del Worker: KV, estáticos simulados y token opcional
-function makeEnv(options = {}) {
+// entorno del Worker: estáticos simulados, objeto durable simulado y token
+function makeEnv(server, options = {}) {
   const env = {
-    ASSETS: { fetch: async (req) => new Response('asset:' + new URL(req.url).pathname) }
+    ASSETS: { fetch: async (req) => new Response('asset:' + new URL(req.url).pathname) },
+    SYNC_TOKEN: options.token === undefined ? 'frase-larga-secreta' : options.token,
   };
-  if (options.kv !== false) env.SIGUIENTE_KV = options.kv || makeKv();
-  if (options.token) env.SYNC_TOKEN = options.token;
+  if (options.kv) env.SIGUIENTE_KV = options.kv;
+  if (options.durable !== false) {
+    const store = server.memoryStore();
+    const holder = { failed: [] };
+    env.__store = store;
+    env.__holder = holder;
+    env.STATE_STORE = {
+      idFromName: () => 'id',
+      get: () => ({ fetch: (req) => server.handleApi(req, store, env, holder) }),
+    };
+  }
   return env;
 }
 
-// estado mínimo válido para el Worker
+// estado v2 mínimo válido tal como lo exige SiguienteCore
 function validState(extra = {}) {
-  return Object.assign({ schemaVersion: 1, revision: 3, savedAt: null, tasks: [], plans: [], planItems: [], sessions: [] }, extra);
+  return Object.assign({ schemaVersion: 2, savedAt: null, tasks: [], plans: [], sessions: [] }, extra);
 }
+
+// tarea válida mínima
+function validTask(extra = {}) {
+  return Object.assign(
+    {
+      id: 'tarea_1',
+      title: 'Física II',
+      status: 'inbox',
+      nextAction: null,
+      outcome: null,
+      completedAt: null,
+      createdAt: '2026-09-01T10:00:00Z',
+      updatedAt: '2026-09-01T10:00:00Z',
+    },
+    extra,
+  );
+}
+
+// cabecera Authorization con el token de prueba
+const AUTH = { Authorization: 'Bearer frase-larga-secreta' };
 
 // llama al Worker con una petición real a /api/state
 async function call(worker, env, method, body, headers = {}, path = '/api/state') {
-  const init = { method, headers };
+  const init = { method, headers: Object.assign({}, AUTH, headers) };
   if (body !== undefined) init.body = typeof body === 'string' ? body : JSON.stringify(body);
   return worker.fetch(new Request('https://siguiente.test' + path, init), env);
 }
 
-// ejecuta fn con el reloj del Worker fijado en una fecha ISO
+// ejecuta fn con el reloj fijado en una fecha ISO
 async function atTime(iso, fn) {
   const real = Date.now;
   Date.now = () => new Date(iso).getTime();
@@ -87,141 +111,215 @@ async function captureLogs(fn) {
   return lines;
 }
 
+// comprime un texto con gzip usando las APIs que trae Node
+async function gzip(text) {
+  const stream = new Response(text).body.pipeThrough(new CompressionStream('gzip'));
+  return new Response(stream).arrayBuffer();
+}
+
 async function main() {
-  const worker = (await import('./worker.js')).default;
+  const server = await import('./worker.dist.js');
+  const worker = server.default;
 
   // --- rutas y estáticos ---
 
   test('una ruta que no es /api/state se sirve como estático', async () => {
-    const res = await call(worker, makeEnv(), 'GET', undefined, {}, '/index.html');
+    const res = await call(worker, makeEnv(server), 'GET', undefined, {}, '/index.html');
     assertEqual(await res.text(), 'asset:/index.html');
   });
 
-  test('sin KV configurado la API responde 503 con JSON', async () => {
-    const res = await call(worker, makeEnv({ kv: false }), 'GET');
+  test('sin objeto durable configurado la API responde 503', async () => {
+    const res = await call(worker, makeEnv(server, { durable: false }), 'GET');
     assertEqual(res.status, 503);
     assert(typeof (await res.json()).error === 'string', 'error descriptivo');
   });
 
+  test('sin SYNC_TOKEN configurado la API queda cerrada con 503', async () => {
+    const env = makeEnv(server, { token: null });
+    const get = await call(worker, env, 'GET');
+    const put = await call(worker, env, 'PUT', validState());
+    assertEqual(get.status, 503);
+    assertEqual(put.status, 503);
+  });
+
   test('métodos distintos de GET y PUT dan 405 con Allow', async () => {
     for (const method of ['POST', 'DELETE', 'PATCH']) {
-      const res = await call(worker, makeEnv(), method, method === 'DELETE' ? undefined : '{}');
+      const res = await call(worker, makeEnv(server), method, method === 'DELETE' ? undefined : '{}');
       assertEqual(res.status, 405, method);
       assertEqual(res.headers.get('Allow'), 'GET, PUT', method);
     }
   });
 
   test('las respuestas JSON no se guardan en caché', async () => {
-    const res = await call(worker, makeEnv(), 'GET');
+    const res = await call(worker, makeEnv(server), 'GET');
     assertEqual(res.headers.get('Cache-Control'), 'no-store');
     assert(res.headers.get('Content-Type').startsWith('application/json'), 'tipo JSON');
   });
 
   // --- token ---
 
-  test('con SYNC_TOKEN, sin cabecera o con token incorrecto da 401', async () => {
-    const env = makeEnv({ token: 'frase-larga-secreta' });
-    assertEqual((await call(worker, env, 'GET')).status, 401, 'sin cabecera');
-    assertEqual((await call(worker, env, 'GET', undefined, { Authorization: 'Bearer otro' })).status, 401, 'incorrecto');
-    assertEqual((await call(worker, env, 'GET', undefined, { Authorization: 'frase-larga-secreta' })).status, 401, 'sin Bearer');
-  });
-
-  test('con SYNC_TOKEN, el token correcto en Authorization da acceso', async () => {
-    const env = makeEnv({ token: 'frase-larga-secreta' });
-    const res = await call(worker, env, 'GET', undefined, { Authorization: 'Bearer frase-larga-secreta' });
-    assertEqual(res.status, 200);
+  test('sin cabecera o con token incorrecto da 401', async () => {
+    const env = makeEnv(server);
+    const bare = new Request('https://siguiente.test/api/state');
+    assertEqual((await worker.fetch(bare, env)).status, 401, 'sin cabecera');
+    const wrong = new Request('https://siguiente.test/api/state', {
+      headers: { Authorization: 'Bearer otro' },
+    });
+    assertEqual((await worker.fetch(wrong, env)).status, 401, 'incorrecto');
+    const noBearer = new Request('https://siguiente.test/api/state', {
+      headers: { Authorization: 'frase-larga-secreta' },
+    });
+    assertEqual((await worker.fetch(noBearer, env)).status, 401, 'sin Bearer');
   });
 
   test('el token en la URL no da acceso', async () => {
-    const env = makeEnv({ token: 'frase-larga-secreta' });
-    const res = await call(worker, env, 'GET', undefined, {}, '/api/state?token=frase-larga-secreta');
-    assertEqual(res.status, 401);
+    const env = makeEnv(server);
+    const req = new Request('https://siguiente.test/api/state?token=frase-larga-secreta');
+    assertEqual((await worker.fetch(req, env)).status, 401);
   });
 
   test('un PUT sin token válido no escribe nada', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv, token: 'frase-larga-secreta' });
-    const res = await call(worker, env, 'PUT', validState());
+    const env = makeEnv(server);
+    const req = new Request('https://siguiente.test/api/state', {
+      method: 'PUT',
+      body: JSON.stringify(validState()),
+    });
+    const res = await worker.fetch(req, env);
     assertEqual(res.status, 401);
-    assertEqual(kv.store.size, 0, 'KV intacto');
+    assertEqual(env.__store.meta.state, null, 'almacén intacto');
   });
 
-  // --- lectura y escritura ---
-
-  test('GET con KV vacío devuelve state null', async () => {
-    const body = await (await call(worker, makeEnv(), 'GET')).json();
-    assertEqual(body.state, null);
+  test('tras demasiados intentos fallidos la API frena con 429', async () => {
+    const env = makeEnv(server);
+    const bad = () =>
+      worker.fetch(
+        new Request('https://siguiente.test/api/state', {
+          headers: { Authorization: 'Bearer intento' },
+        }),
+        env,
+      );
+    for (let i = 0; i < 8; i += 1) assertEqual((await bad()).status, 401, 'intento ' + i);
+    assertEqual((await bad()).status, 429);
   });
 
-  test('PUT guarda el estado y GET lo devuelve idéntico', async () => {
-    const env = makeEnv();
-    const state = validState({ tasks: [{ id: 'a', title: 'Física II' }] });
-    const put = await call(worker, env, 'PUT', state);
-    assertEqual(put.status, 200);
-    const got = await (await call(worker, env, 'GET')).json();
-    assertEqual(JSON.stringify(got.state), JSON.stringify(state));
-  });
+  // --- lectura y escritura con revisión del servidor ---
 
-  test('PUT acepta un schemaVersion futuro: el Worker no juzga versiones', async () => {
-    const res = await call(worker, makeEnv(), 'PUT', validState({ schemaVersion: 99 }));
-    assertEqual(res.status, 200);
-  });
-
-  test('PUT rechaza cuerpos que no son JSON, arrays o sin schemaVersion numérico', async () => {
-    const bad = ['no es json', '[]', 'null', '"texto"', '{}', JSON.stringify({ schemaVersion: '1' }), JSON.stringify({ schemaVersion: null })];
-    for (const body of bad) {
-      const kv = makeKv();
-      const res = await call(worker, makeEnv({ kv }), 'PUT', body);
-      assertEqual(res.status, 400, body);
-      assertEqual(kv.store.size, 0, 'nada guardado: ' + body);
-    }
-  });
-
-  test('PUT mide el límite en bytes UTF-8, no en caracteres', async () => {
-    // 600 000 caracteres de 2 bytes: 600 000 < 1 MB en caracteres, pero 1 200 000 bytes > 1 MB
-    const heavy = JSON.stringify(validState({ note: 'ñ'.repeat(600000) }));
-    assert(heavy.length < 1024 * 1024, 'cuenta como caracteres cabe');
-    const kv = makeKv();
-    const res = await call(worker, makeEnv({ kv }), 'PUT', heavy);
-    assertEqual(res.status, 413);
-    assertEqual(kv.store.size, 0, 'nada guardado');
-  });
-
-  // --- blob corrupto ---
-
-  test('GET con un blob ilegible lo aparta en state.corrupt y devuelve state null', async () => {
-    const kv = makeKv();
-    kv.store.set('state', '{roto');
-    const body = await (await call(worker, makeEnv({ kv }), 'GET')).json();
-    assertEqual(body.state, null);
-    assertEqual(kv.store.get('state.corrupt'), '{roto');
-  });
-
-  test('si falla el respaldo del blob ilegible, GET responde igual con state null', async () => {
-    const kv = makeKv();
-    kv.store.set('state', '{roto');
-    kv.failPut = true;
-    const res = await call(worker, makeEnv({ kv }), 'GET');
-    assertEqual(res.status, 200);
+  test('GET vacío devuelve state null y ETag "empty"', async () => {
+    const res = await call(worker, makeEnv(server), 'GET');
+    assertEqual(res.headers.get('ETag'), '"empty"');
     assertEqual((await res.json()).state, null);
   });
 
-  // --- errores del almacén y límites tempranos ---
-
-  test('si KV falla al leer, GET responde 503 con JSON en vez de lanzar', async () => {
-    const kv = makeKv();
-    kv.failGet = true;
-    const res = await call(worker, makeEnv({ kv }), 'GET');
-    assertEqual(res.status, 503);
-    assert(typeof (await res.json()).error === 'string', 'error descriptivo');
+  test('PUT con If-Match "empty" guarda y el servidor asigna la revisión 1', async () => {
+    const env = makeEnv(server);
+    const put = await call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"empty"' });
+    assertEqual(put.status, 200);
+    assertEqual(put.headers.get('ETag'), '"1"');
+    assertEqual((await put.json()).revision, 1);
+    const got = await call(worker, env, 'GET');
+    assertEqual(got.headers.get('ETag'), '"1"');
+    assertEqual(JSON.stringify((await got.json()).state), JSON.stringify(validState({ tasks: [validTask()] })));
   });
 
-  test('si KV falla al escribir, PUT responde 503 con JSON en vez de lanzar', async () => {
-    const kv = makeKv();
-    kv.failPut = true;
-    const res = await call(worker, makeEnv({ kv }), 'PUT', validState());
-    assertEqual(res.status, 503);
-    assert(typeof (await res.json()).error === 'string', 'error descriptivo');
+  test('PUT sin If-Match responde 428 sin escribir', async () => {
+    const env = makeEnv(server);
+    const res = await call(worker, env, 'PUT', validState());
+    assertEqual(res.status, 428);
+    assertEqual(env.__store.meta.state, null, 'nada guardado');
+  });
+
+  test('PUT con la revisión vigente escribe y sube el contador', async () => {
+    const env = makeEnv(server);
+    await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    const res = await call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"1"' });
+    assertEqual(res.status, 200);
+    assertEqual(res.headers.get('ETag'), '"2"');
+    assertEqual(env.__store.meta.revision, 2);
+  });
+
+  test('PUT con revisión vieja responde 409 con el estado actual y su ETag', async () => {
+    const env = makeEnv(server);
+    await call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"empty"' });
+    const res = await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(res.status, 409);
+    assertEqual(res.headers.get('ETag'), '"1"');
+    const body = await res.json();
+    assert(/conflicto/i.test(body.error), 'error de conflicto');
+    assertEqual(body.state.tasks.length, 1, 'devuelve el estado vigente');
+    assertEqual(env.__store.meta.revision, 1, 'no se sobrescribió');
+  });
+
+  test('If-Match malformado responde 400 sin tocar el almacén', async () => {
+    for (const bad of ['3', 'abc', '"x"', '""', '*', '"emptyy"', '" 3"']) {
+      const env = makeEnv(server);
+      const res = await call(worker, env, 'PUT', validState(), { 'If-Match': bad });
+      assertEqual(res.status, 400, bad);
+      assertEqual(env.__store.meta.state, null, 'nada guardado: ' + bad);
+    }
+  });
+
+  test('GET con If-None-Match igual al ETag vigente responde 304', async () => {
+    const env = makeEnv(server);
+    const empty = await call(worker, env, 'GET');
+    const again = await call(worker, env, 'GET', undefined, { 'If-None-Match': empty.headers.get('ETag') });
+    assertEqual(again.status, 304);
+    await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    const res = await call(worker, env, 'GET', undefined, { 'If-None-Match': '"1"' });
+    assertEqual(res.status, 304);
+    const fresh = await call(worker, env, 'GET', undefined, { 'If-None-Match': '"0"' });
+    assertEqual(fresh.status, 200);
+  });
+
+  // --- validación con SiguienteCore ---
+
+  test('PUT rechaza cuerpos que no pasan la validación del núcleo', async () => {
+    const bad = [
+      'no es json',
+      '[]',
+      'null',
+      '"texto"',
+      '{}',
+      JSON.stringify({ schemaVersion: '2' }),
+      JSON.stringify({ schemaVersion: 2 }), // sin tasks/plans/sessions
+      JSON.stringify(validState({ schemaVersion: 99 })),
+      JSON.stringify(validState({ tasks: [{ id: 'x' }] })), // tarea incompleta
+    ];
+    for (const body of bad) {
+      const env = makeEnv(server);
+      const res = await call(worker, env, 'PUT', body, { 'If-Match': '"empty"' });
+      assertEqual(res.status, 400, body);
+      assertEqual(env.__store.meta.state, null, 'nada guardado: ' + body);
+    }
+  });
+
+  test('PUT migra un estado v1 del contrato conocido y lo guarda como v2', async () => {
+    const env = makeEnv(server);
+    const v1 = { schemaVersion: 1, tasks: [], plans: [], sessions: [] };
+    const res = await call(worker, env, 'PUT', v1, { 'If-Match': '"empty"' });
+    assertEqual(res.status, 200);
+    const got = await (await call(worker, env, 'GET')).json();
+    assertEqual(got.state.schemaVersion, 2);
+  });
+
+  test('PUT acepta el cuerpo comprimido con gzip', async () => {
+    const env = makeEnv(server);
+    const packed = await gzip(JSON.stringify(validState({ tasks: [validTask()] })));
+    const req = new Request('https://siguiente.test/api/state', {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Encoding': 'gzip', 'If-Match': '"empty"' }, AUTH),
+      body: packed,
+    });
+    const res = await worker.fetch(req, env);
+    assertEqual(res.status, 200);
+    const got = await (await call(worker, env, 'GET')).json();
+    assertEqual(got.state.tasks.length, 1);
+  });
+
+  test('PUT mide el límite en bytes tras descomprimir y rechaza gigantes', async () => {
+    const env = makeEnv(server);
+    const heavy = JSON.stringify(validState({ sessions: [{ id: 'x', padding: 'ñ'.repeat(33 * 1024 * 1024) }] }));
+    const res = await call(worker, env, 'PUT', heavy, { 'If-Match': '"empty"' });
+    assertEqual(res.status, 413);
   });
 
   test('un Content-Length mayor al límite se rechaza con 413 sin leer el cuerpo', async () => {
@@ -229,19 +327,53 @@ async function main() {
     const request = {
       url: 'https://siguiente.test/api/state',
       method: 'PUT',
-      headers: new Headers({ 'Content-Length': String(2 * 1024 * 1024) }),
-      text: async () => { bodyRead = true; return '{}'; }
+      headers: new Headers(Object.assign({ 'Content-Length': String(40 * 1024 * 1024) }, AUTH)),
+      text: async () => {
+        bodyRead = true;
+        return '{}';
+      },
     };
-    const res = await worker.fetch(request, makeEnv());
+    const res = await worker.fetch(request, makeEnv(server));
     assertEqual(res.status, 413);
     assertEqual(bodyRead, false, 'el cuerpo no se leyó');
+  });
+
+  // --- traspaso desde KV ---
+
+  test('la primera lectura con almacén vacío adopta el estado de KV como revisión 1', async () => {
+    const kv = makeKv({ state: JSON.stringify(validState({ tasks: [validTask()] })) });
+    const env = makeEnv(server, { kv });
+    const res = await call(worker, env, 'GET');
+    assertEqual(res.headers.get('ETag'), '"1"');
+    assertEqual((await res.json()).state.tasks.length, 1);
+    assert(kv.store.has('state'), 'KV sigue intacto como respaldo');
+  });
+
+  test('un blob heredado que no valida no se adopta', async () => {
+    const kv = makeKv({ state: '{roto' });
+    const env = makeEnv(server, { kv });
+    const res = await call(worker, env, 'GET');
+    assertEqual((await res.json()).state, null);
+    assertEqual(res.headers.get('ETag'), '"empty"');
+  });
+
+  // --- blob corrupto ---
+
+  test('GET con un cuerpo ilegible devuelve state null y ETag "empty"', async () => {
+    const env = makeEnv(server);
+    env.__store.meta.state = '{roto';
+    env.__store.meta.revision = 4;
+    const res = await call(worker, env, 'GET');
+    assertEqual((await res.json()).state, null);
+    assertEqual(res.headers.get('ETag'), '"empty"');
   });
 
   // --- cabeceras de seguridad ---
 
   test('las respuestas de la API llevan X-Content-Type-Options: nosniff, también las de error', async () => {
-    const ok = await call(worker, makeEnv(), 'GET');
-    const bad = await call(worker, makeEnv(), 'PUT', 'no es json');
+    const env = makeEnv(server);
+    const ok = await call(worker, env, 'GET');
+    const bad = await call(worker, env, 'PUT', 'no es json', { 'If-Match': '"empty"' });
     assertEqual(ok.headers.get('X-Content-Type-Options'), 'nosniff');
     assertEqual(bad.headers.get('X-Content-Type-Options'), 'nosniff');
   });
@@ -265,82 +397,98 @@ async function main() {
 
   // --- copias diarias ---
 
-  test('el primer PUT del día guarda una copia del estado anterior que caduca a los 30 días', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 1 })));
-    await atTime('2026-09-28T08:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 2 })));
-    assertEqual(kv.store.get('backup.2026-09-28'), JSON.stringify(validState({ revision: 1 })), 'copia = estado previo');
-    assertEqual(kv.options.get('backup.2026-09-28').expirationTtl, 30 * 24 * 60 * 60);
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 2, 'el estado nuevo sí se guardó');
+  test('el primer PUT del día guarda una copia del estado anterior', async () => {
+    const env = makeEnv(server);
+    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' }));
+    await atTime('2026-09-28T08:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"1"' }),
+    );
+    const copy = env.__store.backups.get('2026-09-28');
+    assert(copy, 'hay copia del día');
+    assertEqual(copy.revision, 1, 'la copia guarda la revisión anterior');
+    assertEqual(JSON.parse(copy.body).tasks.length, 0, 'la copia tiene el estado previo');
   });
 
   test('un segundo PUT el mismo día no reemplaza la copia', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 1 })));
-    await atTime('2026-09-28T08:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 2 })));
-    await atTime('2026-09-28T20:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 3 })));
-    assertEqual(JSON.parse(kv.store.get('backup.2026-09-28')).revision, 1, 'sigue siendo la del inicio del día');
-  });
-
-  test('al cambiar de día se guarda otra copia con el estado de ese momento', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await atTime('2026-09-28T10:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 1 })));
-    await atTime('2026-09-28T20:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 2 })));
-    await atTime('2026-09-29T08:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 3 })));
-    assertEqual(JSON.parse(kv.store.get('backup.2026-09-29')).revision, 2);
+    const env = makeEnv(server);
+    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' }));
+    await atTime('2026-09-28T08:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"1"' }),
+    );
+    await atTime('2026-09-28T20:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask({ id: 't2' })] }), { 'If-Match': '"2"' }),
+    );
+    assertEqual(env.__store.backups.get('2026-09-28').revision, 1, 'sigue siendo la del inicio del día');
   });
 
   test('el primer PUT de todos no crea copia porque no hay estado anterior', async () => {
-    const kv = makeKv();
-    await atTime('2026-09-28T10:00:00Z', () => call(worker, makeEnv({ kv }), 'PUT', validState()));
-    assertEqual([...kv.store.keys()].join(','), 'state');
+    const env = makeEnv(server);
+    await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(env.__store.backups.size, 0);
   });
 
-  test('si falla guardar la copia, el estado nuevo se guarda igual', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 1 })));
-    kv.failPutPrefix = 'backup.';
-    await atTime('2026-09-28T08:00:00Z', async () => {
-      const r = await call(worker, env, 'PUT', validState({ revision: 2 }));
-      assertEqual(r.status, 200);
+  test('el primer PUT adopta el estado heredado y responde 409 con él', async () => {
+    const kv = makeKv({ state: JSON.stringify(validState({ tasks: [validTask()] })) });
+    const env = makeEnv(server, { kv });
+    const res = await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(res.status, 409, 'la herencia pasa primero');
+    const body = await res.json();
+    assertEqual(body.state.tasks.length, 1, 'devuelve el estado adoptado');
+    assertEqual(res.headers.get('ETag'), '"1"');
+    assertEqual(env.__store.meta.revision, 1, 'adoptado como revisión 1');
+  });
+
+  test('un cuerpo guardado ilegible cuenta como vacío y PUT "empty" lo recupera', async () => {
+    const env = makeEnv(server);
+    env.__store.meta.state = '{roto';
+    env.__store.meta.revision = 4;
+    const res = await call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' });
+    assertEqual(res.status, 200);
+    assertEqual(env.__store.meta.revision, 5, 'continúa la revisión');
+  });
+
+  test('las copias con más de 30 días se eliminan', async () => {
+    const env = makeEnv(server);
+    await atTime('2026-08-01T10:00:00Z', () => call(worker, env, 'PUT', validState(), { 'If-Match': '"empty"' }));
+    await atTime('2026-08-02T10:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask()] }), { 'If-Match': '"1"' }),
+    );
+    assert(env.__store.backups.has('2026-08-02'), 'hay copia del inicio del día');
+    await atTime('2026-10-01T10:00:00Z', () =>
+      call(worker, env, 'PUT', validState({ tasks: [validTask({ id: 't2' })] }), { 'If-Match': '"2"' }),
+    );
+    assert(!env.__store.backups.has('2026-08-02'), 'la copia vieja se borró');
+    assert(env.__store.backups.has('2026-10-01'), 'la copia del día sigue');
+  });
+
+  test('un gzip que descomprime más del límite responde 413 sin guardar', async () => {
+    const env = makeEnv(server);
+    const packed = await gzip('x'.repeat(33 * 1024 * 1024));
+    const req = new Request('https://siguiente.test/api/state', {
+      method: 'PUT',
+      headers: Object.assign({ 'Content-Encoding': 'gzip', 'If-Match': '"empty"' }, AUTH),
+      body: packed,
     });
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 2);
-    assert(!kv.store.has('backup.2026-09-28'), 'sin copia');
-  });
-
-  test('si no se puede leer el estado previo, el PUT se guarda igual sin copia', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await atTime('2026-09-27T10:00:00Z', () => call(worker, env, 'PUT', validState({ revision: 1 })));
-    kv.failGet = true;
-    await atTime('2026-09-28T08:00:00Z', async () => {
-      const r = await call(worker, env, 'PUT', validState({ revision: 2 }));
-      assertEqual(r.status, 200);
-    });
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 2);
-    assert(!kv.store.has('backup.2026-09-28'), 'sin copia');
-  });
-
-  test('un blob previo ilegible también se conserva tal cual en la copia', async () => {
-    const kv = makeKv();
-    kv.store.set('state', '{roto');
-    await atTime('2026-09-28T08:00:00Z', () => call(worker, makeEnv({ kv }), 'PUT', validState()));
-    assertEqual(kv.store.get('backup.2026-09-28'), '{roto');
+    const res = await worker.fetch(req, env);
+    assertEqual(res.status, 413);
+    assertEqual(env.__store.meta.state, null, 'nada guardado');
   });
 
   // --- observabilidad ---
 
   test('los registros describen el resultado sin incluir el token ni el contenido del estado', async () => {
-    const env = makeEnv({ token: 'frase-larga-secreta' });
-    const auth = { Authorization: 'Bearer frase-larga-secreta' };
+    const env = makeEnv(server);
     const lines = await captureLogs(async () => {
-      await call(worker, env, 'PUT', validState({ tasks: [{ id: 'a', title: 'Contenido privado' }] }), auth);
-      await call(worker, env, 'GET', undefined, auth);
-      await call(worker, env, 'GET', undefined, { Authorization: 'Bearer intento-fallido' });
+      await call(worker, env, 'PUT', validState({ tasks: [validTask({ title: 'Contenido privado' })] }), {
+        'If-Match': '"empty"',
+      });
+      await call(worker, env, 'GET');
+      await worker.fetch(
+        new Request('https://siguiente.test/api/state', {
+          headers: { Authorization: 'Bearer intento-fallido' },
+        }),
+        env,
+      );
     });
     assert(lines.length >= 3, 'hay una línea por petición a la API');
     const all = lines.join('\n');
@@ -350,135 +498,22 @@ async function main() {
     lines.forEach((line) => JSON.parse(line));
   });
 
-  // --- ETag e If-Match ---
+  // --- ejecución ---
 
-  test('GET devuelve ETag con la revisión y "empty" cuando no hay estado', async () => {
-    const env = makeEnv();
-    const empty = await call(worker, env, 'GET');
-    assertEqual(empty.headers.get('ETag'), '"empty"');
-    await call(worker, env, 'PUT', validState({ revision: 3 }));
-    const res = await call(worker, env, 'GET');
-    assertEqual(res.headers.get('ETag'), '"3"');
-    assertEqual((await res.json()).state.revision, 3);
-  });
-
-  test('GET con blob ilegible devuelve state null y ETag "empty"', async () => {
-    const kv = makeKv();
-    kv.store.set('state', '{roto');
-    const res = await call(worker, makeEnv({ kv }), 'GET');
-    assertEqual((await res.json()).state, null);
-    assertEqual(res.headers.get('ETag'), '"empty"');
-  });
-
-  test('PUT aceptado devuelve el ETag de la revisión guardada', async () => {
-    const res = await call(worker, makeEnv(), 'PUT', validState({ revision: 7 }));
-    assertEqual(res.status, 200);
-    assertEqual(res.headers.get('ETag'), '"7"');
-  });
-
-  test('PUT sin If-Match sigue escribiendo sobre un estado existente', async () => {
-    const env = makeEnv();
-    await call(worker, env, 'PUT', validState({ revision: 3 }));
-    const res = await call(worker, env, 'PUT', validState({ revision: 4 }));
-    assertEqual(res.status, 200);
-    assertEqual(res.headers.get('ETag'), '"4"');
-  });
-
-  test('If-Match con la revisión vigente permite el guardado', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await call(worker, env, 'PUT', validState({ revision: 3 }));
-    const res = await call(worker, env, 'PUT', validState({ revision: 4 }), { 'If-Match': '"3"' });
-    assertEqual(res.status, 200);
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 4);
-  });
-
-  test('If-Match "empty" permite el primer guardado y falla si ya hay estado', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    const first = await call(worker, env, 'PUT', validState({ revision: 1 }), { 'If-Match': '"empty"' });
-    assertEqual(first.status, 200);
-    const stale = await call(worker, env, 'PUT', validState({ revision: 2 }), { 'If-Match': '"empty"' });
-    assertEqual(stale.status, 409);
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 1, 'no se sobrescribió');
-  });
-
-  test('If-Match viejo responde 409 con el estado actual y su ETag, sin escribir ni copiar', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await call(worker, env, 'PUT', validState({ revision: 5, tasks: [{ id: 'a', title: 'Vigente' }] }));
-    const res = await call(worker, env, 'PUT', validState({ revision: 6 }), { 'If-Match': '"3"' });
-    assertEqual(res.status, 409);
-    assertEqual(res.headers.get('ETag'), '"5"');
-    const body = await res.json();
-    assert(/conflicto/i.test(body.error), 'error de conflicto');
-    assertEqual(body.state.revision, 5, 'devuelve el estado vigente');
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 5, 'KV intacto');
-    const backups = [...kv.store.keys()].filter((k) => k.startsWith('backup.'));
-    assertEqual(backups.length, 0, 'sin copia diaria: el 409 no escribe nada');
-  });
-
-  test('un blob ilegible cuenta como "empty" en la comparación condicional', async () => {
-    const kv = makeKv();
-    kv.store.set('state', '{roto');
-    const env = makeEnv({ kv });
-    const conflict = await call(worker, env, 'PUT', validState(), { 'If-Match': '"3"' });
-    assertEqual(conflict.status, 409);
-    assertEqual((await conflict.json()).state, null);
-    assertEqual(conflict.headers.get('ETag'), '"empty"');
-    const ok = await call(worker, env, 'PUT', validState({ revision: 1 }), { 'If-Match': '"empty"' });
-    assertEqual(ok.status, 200, 'se recupera como vacío');
-  });
-
-  test('If-Match acepta la notación con exponente que emite String() en revisiones grandes', async () => {
-    const kv = makeKv();
-    const env = makeEnv({ kv });
-    await call(worker, env, 'PUT', validState({ revision: 1e21 }));
-    const res = await call(worker, env, 'GET');
-    const etag = res.headers.get('ETag');
-    assertEqual(etag, '"1e+21"');
-    const put = await call(worker, env, 'PUT', validState({ revision: 3 }), { 'If-Match': etag });
-    assertEqual(put.status, 200);
-    assertEqual(JSON.parse(kv.store.get('state')).revision, 3);
-  });
-
-  test('If-Match malformado responde 400 sin tocar KV', async () => {
-    for (const bad of ['3', 'abc', '"x"', '""', '*', '"emptyy"', '" 3"']) {
-      const kv = makeKv();
-      const res = await call(worker, makeEnv({ kv }), 'PUT', validState(), { 'If-Match': bad });
-      assertEqual(res.status, 400, bad);
-      assertEqual(kv.store.size, 0, 'nada guardado: ' + bad);
-    }
-  });
-
-  test('si KV falla al leer la comparación, PUT condicional responde 503 con JSON', async () => {
-    const kv = makeKv();
-    kv.failGet = true;
-    const res = await call(worker, makeEnv({ kv }), 'PUT', validState(), { 'If-Match': '"1"' });
-    assertEqual(res.status, 503);
-    assert(typeof (await res.json()).error === 'string', 'error descriptivo');
-  });
-
-  // --- ejecución y salida ---
-
-  // los registros del Worker se silencian durante cada prueba para que la salida sea solo el resultado
-  const print = console.log;
-  const results = [];
-  for (const item of registry) {
-    console.log = () => {};
+  let passed = 0;
+  for (const { name, fn } of registry) {
     try {
-      await item.fn();
-      results.push({ name: item.name, ok: true });
-    } catch (e) {
-      results.push({ name: item.name, ok: false, error: (e && e.message) || String(e) });
-    } finally {
-      console.log = print;
+      await fn();
+      passed += 1;
+      console.log('OK  ', name);
+    } catch (error) {
+      console.log('FAIL', name);
+      console.log('     ' + error.message);
     }
   }
-  results.forEach((r) => print((r.ok ? 'OK   ' : 'FALLA ') + r.name + (r.ok ? '' : '  ->  ' + r.error)));
-  const failed = results.filter((r) => !r.ok);
-  print('\n' + (results.length - failed.length) + '/' + results.length + ' pruebas en verde');
-  if (failed.length) process.exit(1);
+  console.log('');
+  console.log(passed + '/' + registry.length + ' pruebas en verde');
+  if (passed !== registry.length) process.exitCode = 1;
 }
 
 main();
