@@ -600,7 +600,6 @@
     mergeStates,
   };
   root.SiguienteCore = Object.freeze(api);
-  if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(globalThis);
 
 // Siguiente · servidor del Worker: estáticos de public/ y la API /api/state

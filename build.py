@@ -29,7 +29,11 @@ print('public/index.html generado:', out.stat().st_size, 'bytes')
 
 # el Worker desplegado es un solo archivo: el núcleo delante y el servidor detrás,
 # así el servidor valida con el mismo SiguienteCore que usa la app
+# (el bundle es ESM: se retira la exportación CommonJS del núcleo, que ahí queda
+# muerta y dispara un aviso de esbuild al desplegar; en Node los tests usan src/)
+cjs_export = "  if (typeof module !== 'undefined' && module.exports) module.exports = api;\n"
+assert cjs_export in core, 'src/core.js ya no tiene la exportación CommonJS esperada'
 dist = root / 'worker.dist.js'
 with open(dist, 'w', encoding='utf-8', newline='') as f:
-    f.write(core + '\n' + server)
+    f.write(core.replace(cjs_export, '') + '\n' + server)
 print('worker.dist.js generado:', dist.stat().st_size, 'bytes')
